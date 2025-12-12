@@ -157,6 +157,7 @@ AI - Photo Frame 5/App1/
 
 ## 🎯 Usage
 
+
 ### Home Page
 - View the latest image in large hero view
 - Scroll through thumbnails in the sidebar
@@ -164,6 +165,7 @@ AI - Photo Frame 5/App1/
 - Use **Previous/Next** buttons or **arrow keys** to navigate
 - Toggle **Safe Mode** in the header to filter NSFW content
 - Filter by **Photos** or **Videos** using media type buttons
+![2025-12-12 00_36_48-](https://github.com/user-attachments/assets/d3fff599-33b1-4330-94cd-2ef67f87129f)
 
 ### Gallery
 - Browse images in a responsive grid layout
@@ -173,12 +175,17 @@ AI - Photo Frame 5/App1/
 - Search by filename, prompt, or model name
 - Adjust thumbnail size with the slider
 - **Delete** images directly from the preview panel
+![2025-12-12 00_37_28-Greenshot](https://github.com/user-attachments/assets/b00bf89a-1592-4bf0-8fab-0618433da24a)
 
 ### Picture Frame Mode
+
 - Minimalist full-screen view
 - Auto-updates when new images arrive
 - Perfect for dedicated display setups
 - Click **Go to Home** to return to main view
+- Full-Screen button for mobile devices
+![2025-12-12 00_37_41-Greenshot](https://github.com/user-attachments/assets/85786205-0f39-4d46-839c-3c9e2f0f0ef8)
+
 
 ## 🔧 Filename Format
 
