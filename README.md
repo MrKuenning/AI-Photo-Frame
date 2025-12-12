@@ -1,4 +1,4 @@
-# AI Photo Frame
+# Real Time - AI Photo Frame
 
 A modern, web-based photo frame application designed for viewing and managing AI-generated images and videos. Features a sleek glassmorphism UI with real-time updates, smart NSFW filtering, and responsive navigation.
 
