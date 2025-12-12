@@ -2,6 +2,8 @@
 
 A modern, web-based photo frame application designed for viewing and managing AI-generated images and videos. Features a sleek glassmorphism UI with real-time updates, smart NSFW filtering, and responsive navigation.
 
+It monitors a folder for new images and videos and updates image and video files in real-time. This allows you to use a second monitor as a photo frame or video player as you generate new images and videos.
+
 ![Version](https://img.shields.io/badge/version-5.0-blue)
 ![Python](https://img.shields.io/badge/python-3.8+-green)
 ![Flask](https://img.shields.io/badge/flask-2.3.3-lightgrey)
