@@ -47,12 +47,11 @@ It monitors a folder for new images and videos and updates image and video files
 - Modern web browser (Chrome, Firefox, Edge, Safari)
 - Windows, macOS, or Linux
 
-## 🚀 Installation
+## 🚀 Installation - Tested on Windows 11
 
 ### 1. Clone or Download
 ```bash
-git clone <repository-url>
-cd "AI - Photo Frame 5/App1"
+git clone https://github.com/MrKuenning/AI-Photo-Frame
 ```
 
 ### 2. Install Dependencies
@@ -109,10 +108,10 @@ MAX_INITIAL_LOAD = 100
 ### NSFW Filtering
 ```ini
 # Keywords to identify NSFW content (comma-separated)
-NSFW_KEYWORDS = adult, nsfw, nude, ...
+NSFW_KEYWORDS = adult, nsfw, bikini, ...
 
 # Folders containing NSFW content (comma-separated)
-NSFW_FOLDERS = NSFW, VIDEO, STAGING
+NSFW_FOLDERS = NSFW, VIDEO, FAMILY
 ```
 
 ### Display Settings
