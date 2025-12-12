@@ -124,9 +124,6 @@ GALLERY_THUMBNAIL_SIZE = 200x200
 
 # Preview size for gallery hero view
 GALLERY_PREVIEW_SIZE = 800x800
-
-# Pagination limit
-PAGINATION_LIMIT = 100
 ```
 
 ## 📂 Project Structure
