@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Viewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% if request.endpoint == 'frame' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/frame.css') }}">
+    {% endif %}
+    <!-- WORKING CONFIGURATION - display_mode_toggle.js disabled due to performance issues -->
+    {% if request.endpoint != 'index' %}
+    <script src="{{ url_for('static', filename='js/websocket.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/media_helper.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/thumbnail_click.js') }}"></script>
+    {% endif %}
+    <script src="{{ url_for('static', filename='js/nsfw_filter.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar_toggle.js') }}"></script>
+    {% if request.endpoint != 'index' %}
+    <script src="{{ url_for('static', filename='js/image_size_toggle.js') }}"></script>
+    {% endif %}
+    <!-- DISABLED: causes page freeze <script src="{{ url_for('static', filename='js/display_mode_toggle.js') }}"></script> -->
+    <script src="{{ url_for('static', filename='js/media_filter.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/thumbnail_slider.js') }}"></script>
+    <!-- <script src="{{ url_for('static', filename='js/keyboard_nav.js') }}"></script> -->
+</head>
+
+<body>
+    <div class="container">
+        <nav class="navbar navbar-expand-lg navbar-dark rounded">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="{{ url_for('index') }}">✨ AI Photo Frame</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <!-- Left section: Navigation links -->
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}"
+                                href="{{ url_for('index') }}">
+                                <i class="bi bi-house-fill me-1"></i> Home
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'gallery' %}active{% endif %}"
+                                href="{{ url_for('gallery') }}">
+                                <i class="bi bi-grid-3x3-gap-fill me-1"></i> Gallery
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'frame' %}active{% endif %}"
+                                href="{{ url_for('frame') }}">
+                                <i class="bi bi-aspect-ratio-fill me-1"></i> Picture Frame
+                            </a>
+                        </li>
+                    </ul>
+
+                    <!-- Center section: Media Type Filter -->
+                    <div class="navbar-nav mx-auto">
+                        {% if request.endpoint != 'frame' %}
+                        <div class="btn-group" role="group" aria-label="Media type filter">
+                            <button type="button" class="btn btn-sm btn-outline-primary media-filter-btn active"
+                                data-filter="all">
+                                <i class="bi bi-collection"></i> All
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary media-filter-btn"
+                                data-filter="photos">
+                                <i class="bi bi-image"></i> Photos
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary media-filter-btn"
+                                data-filter="videos">
+                                <i class="bi bi-play-btn"></i> Videos
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Right section: Safe Mode + Fullscreen -->
+                    <div class="d-flex align-items-center gap-3">
+                        <!-- Safe Mode Toggle -->
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="nsfw-toggle">
+                            <label class="form-check-label" for="nsfw-toggle">Safe Mode</label>
+                        </div>
+
+                        <!-- Fullscreen Button -->
+                        <button id="page-fullscreen-toggle" title="Toggle Fullscreen">
+                            <i class="bi bi-arrows-fullscreen"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Fullscreen API with cross-browser compatibility
+        const fullscreenAPI = {
+            enter: function (element) {
+                if (element.requestFullscreen) {
+                    element.requestFullscreen();
+                } else if (element.mozRequestFullScreen) {
+                    element.mozRequestFullScreen();
+                } else if (element.webkitRequestFullscreen) {
+                    element.webkitRequestFullscreen();
+                } else if (element.msRequestFullscreen) {
+                    element.msRequestFullscreen();
+                }
+            },
+            exit: function () {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+            },
+            isFullscreen: function () {
+                return document.fullscreenElement ||
+                    document.mozFullScreenElement ||
+                    document.webkitFullscreenElement ||
+                    document.msFullscreenElement;
+            }
+        };
+
+        // Show metadata on hover
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize fullscreen button
+            const fullscreenToggle = document.getElementById('page-fullscreen-toggle');
+            const container = document.querySelector('.container');
+
+            if (fullscreenToggle && container) {
+                // Update button icon based on fullscreen state
+                function updateFullscreenButton() {
+                    if (fullscreenAPI.isFullscreen()) {
+                        fullscreenToggle.innerHTML = '<i class="bi bi-fullscreen-exit"></i>';
+                        fullscreenToggle.title = 'Exit Fullscreen';
+                    } else {
+                        fullscreenToggle.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
+                        fullscreenToggle.title = 'Enter Fullscreen';
+                    }
+                }
+
+                // Toggle fullscreen on button click
+                fullscreenToggle.addEventListener('click', function () {
+                    if (fullscreenAPI.isFullscreen()) {
+                        fullscreenAPI.exit();
+                    } else {
+                        fullscreenAPI.enter(container);
+                    }
+                });
+
+                // Update button icon on fullscreen change
+                document.addEventListener('fullscreenchange', updateFullscreenButton);
+                document.addEventListener('mozfullscreenchange', updateFullscreenButton);
+                document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+                document.addEventListener('msfullscreenchange', updateFullscreenButton);
+            }
+
+            // Handle refresh link
+            const refreshLink = document.getElementById('refresh-link');
+            if (refreshLink) {
+                refreshLink.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    fetch('/refresh')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                window.location.reload();
+                            }
+                        });
+                });
+            }
+
+            // DISABLED FOR PERFORMANCE - Metadata loading on hover
+            // This was causing page timeouts with many items
+            // Metadata is still loaded when clicking thumbnails
+            /*
+            document.querySelectorAll('.load-metadata').forEach(function (element) {
+                element.addEventListener('mouseenter', function () {
+                    const metadataContainer = this.querySelector('.metadata');
+                    const filename = this.dataset.filename;
+                    const subfolder = this.dataset.subfolder;
+
+                    if (metadataContainer && !metadataContainer.dataset.loaded) {
+                        fetch('/image_info/' + encodeURIComponent(filename))
+                            .then(response => response.json())
+                            .then(data => {
+                                let metadataHtml = '';
+                                if (data.prompt) {
+                                    metadataHtml += `<p><strong>Prompt:</strong> ${data.prompt}</p>`;
+                                }
+                                if (data.seed) {
+                                    metadataHtml += `<p><strong>Seed:</strong> ${data.seed}</p>`;
+                                }
+                                if (data.model) {
+                                    metadataHtml += `<p><strong>Model:</strong> ${data.model}</p>`;
+                                }
+                                if (data.dimensions) {
+                                    metadataHtml += `<p><strong>Dimensions:</strong> ${data.dimensions}</p>`;
+                                }
+                                if (data.date_time) {
+                                    metadataHtml += `<p><strong>Created:</strong> ${data.date_time}</p>`;
+                                }
+                                if (data.subfolder || subfolder) {
+                                    metadataHtml += `<p><strong>Folder:</strong> ${data.subfolder || subfolder}</p>`;
+                                }
+
+                                metadataContainer.innerHTML = metadataHtml;
+                                metadataContainer.dataset.loaded = 'true';
+                            });
+                    }
+                });
+            });
+            */
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

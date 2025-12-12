@@ -1,0 +1,86 @@
+/* Picture Frame Mode - Full Screen Image Display */
+
+/* Ensure picture frame fills entire viewport */
+.picture-frame {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--color-bg-primary);
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+}
+
+/* Image container fills the frame */
+.picture-frame .image-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+/* Images and videos fill screen while maintaining aspect ratio */
+.picture-frame img,
+.picture-frame video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transition: all var(--transition-slow);
+}
+
+/* Fullscreen toggle button */
+.picture-frame .fullscreen-toggle {
+    position: absolute;
+    right: var(--spacing-lg);
+    top: var(--spacing-lg);
+    z-index: 100;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: white;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-full);
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    opacity: 0.6;
+}
+
+.picture-frame .fullscreen-toggle:hover {
+    opacity: 1;
+    background: var(--color-surface-hover);
+    transform: scale(1.1);
+}
+
+/* Metadata overlay */
+.picture-frame .metadata {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--glass-border);
+    color: white;
+    padding: var(--spacing-xl);
+    opacity: 0;
+    transition: opacity var(--transition-slow);
+    max-height: 40%;
+    overflow-y: auto;
+}
+
+.picture-frame .image-container:hover .metadata {
+    opacity: 1;
+}

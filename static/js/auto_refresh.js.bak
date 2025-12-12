@@ -1,0 +1,13 @@
+// Auto-refresh functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to check for new images
+    function checkForNewImages() {
+        fetch('/check_new_images')
+            .then(response => response.json())
+            .then(data => {
+                if (data.new_image) {
+                    // Reload the page if there's a new image
+                    window.location.reload();
+                }
+            })
+            .catch(error => console.error('

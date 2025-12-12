@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Main content with sidebar layout -->
+<div class="main-content">
+    <!-- Sidebar with thumbnails -->
+    <div class="sidebar">
+        <!-- Sidebar Header with Thumbnail Size Slider -->
+        <div class="mb-3 pb-3" style="border-bottom: 1px solid var(--color-border);">
+            <label for="thumbnail-size-slider" class="form-label text-secondary"
+                style="font-size: 0.85rem; font-weight: 600;">
+                <i class="bi bi-sliders"></i> Thumbnails: <span id="thumbnail-size-label">1 per row</span>
+            </label>
+            <input type="range" class="form-range" id="thumbnail-size-slider" min="1" max="4" value="1" step="1">
+        </div>
+
+        <!-- Thumbnails Grid -->
+        <div class="thumbnail-grid">
+            {% for image in images %}
+            <div class="mb-2">
+                <div class="image-container thumbnail-only" data-media-type="{{ image.media_type }}">
+                    <a href="{{ url_for('serve_image', filename=image.subfolder + '/' + image.filename) }}"
+                        class="thumbnail-link" data-filename="{{ image.filename }}"
+                        data-subfolder="{{ image.subfolder }}">
+                        {% if image.media_type == 'video' %}
+                        <video src="{{ url_for('serve_image', filename=image.subfolder + '/' + image.filename) }}"
+                            preload="metadata" class="thumbnail" muted></video>
+                        {% else %}
+                        <img src="{{ url_for('serve_image', filename=image.subfolder + '/' + image.filename) }}"
+                            alt="{{ image.filename }}" class="thumbnail">
+                        {% endif %}
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Show total count info -->
+        {% if total_images > images|length %}
+        <div class="text-center mt-3 mb-2">
+            <small class="text-muted">Showing {{ images|length }} of {{ total_images }} files</small>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sidebar toggle button -->
+    <button id="sidebar-toggle" class="sidebar-toggle" title="Toggle Sidebar">
+        <i class="bi bi-chevron-left"></i>
+    </button>
+
+    <!-- Main image container -->
+    <div class="main-image-container">
+        {% if latest_image %}
+        <div class="image-container hero-view load-metadata" data-filename="{{ latest_image.filename }}"
+            data-subfolder="{{ latest_image.subfolder }}" data-media-type="{{ latest_image.media_type }}">
+            {% if latest_image.media_type == 'video' %}
+            <video src="{{ url_for('serve_image', filename=latest_image.subfolder + '/' + latest_image.filename) }}"
+                controls class="hero-image" preload="metadata" autoplay loop></video>
+            {% else %}
+            <img src="{{ url_for('serve_image', filename=latest_image.subfolder + '/' + latest_image.filename) }}"
+                alt="Latest Image" class="hero-image">
+            {% endif %}
+            <div class="metadata">
+                <!-- Metadata will be loaded via JavaScript -->
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="card-footer"
+            style="background: var(--color-surface); border-top: 1px solid var(--color-border); padding: var(--spacing-md); margin-top: var(--spacing-md);">
+            <div class="d-flex justify-content-between gap-2">
+                <button type="button" class="btn btn-outline-primary flex-grow-1" id="home-prev-image">
+                    <i class="bi bi-arrow-left"></i> Previous
+                </button>
+                <button type="button" class="btn btn-outline-primary flex-grow-1" id="home-next-image">
+                    Next <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info">No images found</div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- Live auto-update for new images -->
+<script src="{{ url_for('static', filename='js/live_update.js') }}"></script>
+<!-- Hero view metadata loader -->
+<script src="{{ url_for('static', filename='js/hero_metadata.js') }}"></script>
+<!-- Home page navigation -->
+<script src="{{ url_for('static', filename='js/index_navigation.js') }}"></script>
+<!-- Simplified thumbnail click handler -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Handle thumbnail clicks to update hero view
+        document.querySelectorAll('.thumbnail-link').forEach(link => {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                const url = this.href;
+                const container = this.closest('.image-container');
+                const mediaType = container ? container.dataset.mediaType : 'image';
+                const filename = this.dataset.filename;
+                const subfolder = this.dataset.subfolder;
+
+                console.log('Thumbnail clicked - URL:', url, 'MediaType:', mediaType);
+
+                // Get the hero view container
+                const heroContainer = document.querySelector('.image-container.hero-view');
+                if (!heroContainer) {
+                    console.error('Hero container not found!');
+                    return;
+                }
+
+                // Clear existing content except metadata
+                const metadata = heroContainer.querySelector('.metadata');
+                heroContainer.innerHTML = '';
+
+                // Create appropriate media element
+                if (mediaType === 'video') {
+                    console.log('Creating video element...');
+                    const videoElement = document.createElement('video');
+                    videoElement.src = url;
+                    videoElement.controls = true;
+                    videoElement.autoplay = true;
+                    videoElement.loop = true;
+                    videoElement.className = 'hero-image';
+                    heroContainer.appendChild(videoElement);
+                    console.log('Video element created and added to DOM');
+                } else {
+                    const imgElement = document.createElement('img');
+                    imgElement.src = url;
+                    imgElement.alt = 'Selected Image';
+                    imgElement.className = 'hero-image';
+                    heroContainer.appendChild(imgElement);
+                }
+
+                // Update hero container data attributes for metadata loading
+                heroContainer.dataset.filename = filename;
+                heroContainer.dataset.subfolder = subfolder;
+                heroContainer.dataset.mediaType = mediaType;
+
+                // Re-add metadata div and reset it for new image
+                if (metadata) {
+                    // Clear old metadata content and reset loaded flag
+                    metadata.innerHTML = '';
+                    delete metadata.dataset.loaded;
+                    heroContainer.appendChild(metadata);
+                }
+
+                // Highlight selected
+                document.querySelectorAll('.thumbnail-only').forEach(t => t.classList.remove('selected'));
+                this.closest('.thumbnail-only').classList.add('selected');
+            });
+        });
+
+        // Highlight first thumbnail
+        const first = document.querySelector('.thumbnail-link');
+        if (first) first.closest('.thumbnail-only').classList.add('selected');
+    });
+</script>
+{% endblock %}

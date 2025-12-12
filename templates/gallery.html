@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Consolidated Navigation Bar -->
+<div class="glass-card mb-3 p-3">
+    <!-- Row 1: Breadcrumb + Sibling Folders on same line -->
+    <div class="d-flex align-items-center mb-2" style="gap: var(--spacing-md);">
+        <!-- Breadcrumb path -->
+        <span class="text-muted" style="font-size: 0.9rem; white-space: nowrap;">
+            <i class="bi bi-house-door"></i>
+            <a href="{{ url_for('gallery') }}"
+                style="color: var(--color-accent-primary); text-decoration: none;">Home</a>
+            {% if breadcrumb_parts %}
+            {% for i in range(breadcrumb_parts|length) %}
+            {% set current_path = breadcrumb_parts[:i+1]|join('/') %}
+            <i class="bi bi-chevron-right" style="font-size: 0.8rem;"></i>
+            {% if i == breadcrumb_parts|length - 1 %}
+            <strong>{{ breadcrumb_parts[i] }}</strong>
+            {% else %}
+            <a href="{{ url_for('gallery', subfolder=current_path) }}"
+                style="color: var(--color-accent-primary); text-decoration: none;">{{ breadcrumb_parts[i] }}</a>
+            {% endif %}
+            {% endfor %}
+            {% else %}
+            <i class="bi bi-chevron-right" style="font-size: 0.8rem;"></i> <strong>All Images</strong>
+            {% endif %}
+        </span>
+
+        <!-- Separator -->
+        {% if (selected_subfolder and sibling_folders) or not selected_subfolder %}
+        <span class="text-muted" style="font-size: 1.2rem;">|</span>
+
+        <!-- Sibling folders OR top-level folders inline (text-style links) -->
+        {% if selected_subfolder and sibling_folders %}
+        <div style="margin: 0; display: flex; gap: var(--spacing-md); flex-wrap: wrap;">
+            {% for sibling in sibling_folders %}
+            {% if '/' in selected_subfolder %}
+            {% set parent_path = selected_subfolder.rsplit('/', 1)[0] %}
+            {% set sibling_path = parent_path + '/' + sibling %}
+            {% else %}
+            {% set sibling_path = sibling %}
+            {% endif %}
+            <a href="{{ url_for('gallery', subfolder=sibling_path) }}"
+                style="color: {% if sibling == current_folder %}var(--color-text-primary); font-weight: bold;{% else %}var(--color-accent-primary);{% endif %} text-decoration: none; font-size: 0.9rem;">
+                <i class="bi bi-folder-fill"></i> {{ sibling }}
+            </a>
+            {% endfor %}
+        </div>
+        {% elif not selected_subfolder %}
+        <div style="margin: 0; display: flex; gap: var(--spacing-md); flex-wrap: wrap;">
+            {% for subfolder in subfolders %}
+            <a href="{{ url_for('gallery', subfolder=subfolder) }}"
+                style="color: var(--color-accent-primary); text-decoration: none; font-size: 0.9rem;">
+                <i class="bi bi-folder-fill"></i> {{ subfolder }}
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- Row 2: Child folders with L-shape indicator -->
+    {% if child_folders %}
+    <div class="d-flex align-items-start" style="gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+        <!-- L-shape indicator -->
+        <div style="color: var(--color-text-secondary); font-size: 1.5rem; line-height: 1; margin-top: -4px;">
+            └
+        </div>
+        <div class="subfolder-nav" style="margin: 0;">
+            {% for child in child_folders %}
+            <a href="{{ url_for('gallery', subfolder=selected_subfolder + '/' + child) }}"
+                class="btn btn-sm btn-outline-secondary subfolder-btn">
+                <i class="bi bi-folder"></i> {{ child }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% elif selected_subfolder and not sibling_folders %}
+    <!-- No children and no siblings -->
+    <div style="margin-top: var(--spacing-md);">
+        <small class="text-muted"><i class="bi bi-info-circle"></i> No subfolders</small>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Sub Top Bar Controls -->
+<div class="glass-card mb-4">
+    <div class="row align-items-center g-3">
+        <!-- Thumbnail Size Slider -->
+        <div class="col-md-4">
+            <label for="gallery-thumbnail-slider" class="form-label mb-1" style="font-size: 0.85rem;">
+                <i class="bi bi-sliders"></i> Thumbnail Size: <span id="gallery-thumbnail-size-label">200</span>
+            </label>
+            <input type="range" class="form-range" id="gallery-thumbnail-slider" min="150" max="400" value="200"
+                step="25">
+        </div>
+
+        <!-- Spacer -->
+        <div class="col-md-3"></div>
+
+        <!-- Search Bar -->
+        <div class="col-md-5">
+            <form action="{{ url_for('gallery') }}" method="get" id="search-form">
+                <div class="input-group">
+                    <span class="input-group-text glass-input"><i class="bi bi-search"></i></span>
+                    <input type="text" id="image-search" name="search" class="form-control glass-input"
+                        placeholder="Search by filename or prompt..." value="{{ request.args.get('search', '') }}">
+                    {% if selected_subfolder %}
+                    <input type="hidden" name="subfolder" value="{{ selected_subfolder }}">
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Gallery Container -->
+<div id="gallery-container">
+    <!-- Gallery grid -->
+    <div id="gallery-grid-container">
+        <div class="image-grid" id="image-grid">
+            {% for image in images %}
+            <div class="image-container load-metadata gallery-item" data-filename="{{ image.filename }}"
+                data-subfolder="{{ image.subfolder }}" data-index="{{ loop.index0 }}"
+                data-media-type="{{ image.media_type }}">
+                {% if image.media_type == 'video' %}
+                <video src="{{ url_for('serve_image', filename=image.subfolder + '/' + image.filename) }}"
+                    preload="metadata" class="thumbnail" muted></video>
+                {% else %}
+                <img src="{{ url_for('serve_image', filename=image.subfolder + '/' + image.filename) }}"
+                    alt="{{ image.filename }}" class="thumbnail">
+                {% endif %}
+                <div class="metadata">
+                    <!-- Metadata will be loaded via JavaScript -->
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Loading indicator for infinite scroll -->
+        <div class="text-center mt-4 mb-4" id="scroll-status">
+            <p class="text-muted">Loaded {{ images|length }} of {{ total_images }} images</p>
+        </div>
+    </div>
+
+    <!-- Large preview container (initially hidden via CSS width: 0) -->
+    <div id="large-preview-container">
+        <div class="preview-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <button type="button" class="btn btn-sm btn-outline-danger" id="delete-image-btn" aria-label="Delete">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="close-preview" aria-label="Close">
+                    <i class="bi bi-x-lg"></i> Close
+                </button>
+            </div>
+            <div class="preview-card-body">
+                <div class="large-preview-image-container hero-view">
+                    <img id="large-preview-image" src="" alt="" class="hero-image">
+                    <div class="metadata" id="preview-metadata-overlay">
+                        <!-- Metadata overlay on hover -->
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer"
+                style="background: var(--color-surface); border-top: 1px solid var(--color-border); padding: var(--spacing-md);">
+                <div class="d-flex justify-content-between gap-2">
+                    <button type="button" class="btn btn-outline-primary flex-grow-1" id="prev-image">
+                        <i class="bi bi-arrow-left"></i> Previous
+                    </button>
+                    <button type="button" class="btn btn-outline-primary flex-grow-1" id="next-image">
+                        Next <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gallery-specific JavaScript -->
+<script>
+    // Gallery thumbnail size slider
+    document.addEventListener('DOMContentLoaded', function () {
+        const slider = document.getElementById('gallery-thumbnail-slider');
+        const sizeLabel = document.getElementById('gallery-thumbnail-size-label');
+        const imageGrid = document.querySelector('.image-grid');
+
+        if (slider && imageGrid) {
+            // Load saved size
+            const savedSize = localStorage.getItem('galleryThumbnailSize') || slider.value;
+            slider.value = savedSize;
+            sizeLabel.textContent = savedSize + 'px';
+            updateGalleryThumbnailSize(savedSize);
+
+            // Handle slider changes
+            slider.addEventListener('input', function () {
+                const size = this.value;
+                sizeLabel.textContent = size + 'px';
+                updateGalleryThumbnailSize(size);
+                localStorage.setItem('galleryThumbnailSize', size);
+            });
+        }
+
+        function updateGalleryThumbnailSize(size) {
+            // Set CSS variable on the image grid
+            // This will automatically adjust the grid columns
+            if (imageGrid) {
+                imageGrid.style.setProperty('--thumbnail-size', size + 'px');
+            }
+        }
+    });
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/gallery.js') }}"></script>
+<script src="{{ url_for('static', filename='js/infinite-scroll.js') }}"></script>
+{% endblock %}
