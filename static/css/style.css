@@ -682,7 +682,7 @@ body::before {
     display: flex;
     flex-wrap: nowrap;
     gap: var(--spacing-lg);
-    height: calc(100vh - 300px);
+    height: calc(100vh - 220px);
     min-height: 500px;
 }
 

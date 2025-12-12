@@ -57,6 +57,33 @@
         </div>
         {% endif %}
         {% endif %}
+
+        <!-- Spacer to push controls to the right -->
+        <div class="flex-grow-1"></div>
+
+        <!-- Thumbnail Size Slider -->
+        <div class="flex-shrink-0 d-flex align-items-center" style="min-width: 220px; gap: 8px;">
+            <i class="bi bi-sliders" style="font-size: 0.85rem;"></i>
+            <input type="range" class="form-range" id="gallery-thumbnail-slider" min="150" max="400" value="200"
+                step="25" style="flex: 1;">
+            <span id="gallery-thumbnail-size-label"
+                style="font-size: 0.85rem; min-width: 50px; text-align: right;">200px</span>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="flex-shrink-0" style="min-width: 300px; max-width: 400px;">
+            <form action="{{ url_for('gallery') }}" method="get" id="search-form">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text glass-input"><i class="bi bi-search"></i></span>
+                    <input type="text" id="image-search" name="search" class="form-control glass-input"
+                        placeholder="Search..." value="{{ request.args.get('search', '') }}">
+                    {% if selected_subfolder %}
+                    <input type="hidden" name="subfolder" value="{{ selected_subfolder }}">
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Row 2: Child folders with L-shape indicator -->
@@ -81,38 +108,6 @@
         <small class="text-muted"><i class="bi bi-info-circle"></i> No subfolders</small>
     </div>
     {% endif %}
-</div>
-
-<!-- Sub Top Bar Controls -->
-<div class="glass-card mb-4">
-    <div class="row align-items-center g-3">
-        <!-- Thumbnail Size Slider -->
-        <div class="col-md-4">
-            <label for="gallery-thumbnail-slider" class="form-label mb-1" style="font-size: 0.85rem;">
-                <i class="bi bi-sliders"></i> Thumbnail Size: <span id="gallery-thumbnail-size-label">200</span>
-            </label>
-            <input type="range" class="form-range" id="gallery-thumbnail-slider" min="150" max="400" value="200"
-                step="25">
-        </div>
-
-        <!-- Spacer -->
-        <div class="col-md-3"></div>
-
-        <!-- Search Bar -->
-        <div class="col-md-5">
-            <form action="{{ url_for('gallery') }}" method="get" id="search-form">
-                <div class="input-group">
-                    <span class="input-group-text glass-input"><i class="bi bi-search"></i></span>
-                    <input type="text" id="image-search" name="search" class="form-control glass-input"
-                        placeholder="Search by filename or prompt..." value="{{ request.args.get('search', '') }}">
-                    {% if selected_subfolder %}
-                    <input type="hidden" name="subfolder" value="{{ selected_subfolder }}">
-                    {% endif %}
-                    <button type="submit" class="btn btn-primary">Search</button>
-                </div>
-            </form>
-        </div>
-    </div>
 </div>
 
 <!-- Gallery Container -->
