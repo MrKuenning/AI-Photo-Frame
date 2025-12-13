@@ -592,7 +592,10 @@ def load_more_images():
 
 @app.route('/image/<path:filename>')
 def serve_image(filename):
-    """Serve original images from any subfolder depth"""
+    """Serve original images and videos from any subfolder depth with range request support for iOS"""
+    import mimetypes
+    from flask import Response
+    
     # Split the path to handle nested subfolders
     path_parts = filename.split('/')
     
@@ -604,9 +607,63 @@ def serve_image(filename):
     
     # Construct the full directory path
     full_dir_path = os.path.join(CONFIG['IMAGE_FOLDER'], subfolder_path)
+    full_file_path = os.path.join(full_dir_path, actual_filename)
     
-    # Serve the file from the correct subfolder
-    return send_from_directory(full_dir_path, actual_filename)
+    # Check if file exists
+    if not os.path.exists(full_file_path):
+        return "File not found", 404
+    
+    # Determine MIME type based on file extension
+    mimetype, _ = mimetypes.guess_type(actual_filename)
+    
+    # If mimetype couldn't be guessed, set defaults based on extension
+    if not mimetype:
+        ext = os.path.splitext(actual_filename)[1].lower()
+        video_mimes = {
+            '.mp4': 'video/mp4',
+            '.webm': 'video/webm',
+            '.mov': 'video/quicktime',
+            '.avi': 'video/x-msvideo',
+            '.mkv': 'video/x-matroska',
+            '.m4v': 'video/x-m4v'
+        }
+        mimetype = video_mimes.get(ext, 'application/octet-stream')
+    
+    # Check if this is a video file
+    is_video = mimetype and mimetype.startswith('video/')
+    
+    # For videos, support range requests (required for iOS Safari)
+    if is_video:
+        file_size = os.path.getsize(full_file_path)
+        range_header = request.headers.get('Range', None)
+        
+        if range_header:
+            # Parse range header
+            byte_range = range_header.replace('bytes=', '').split('-')
+            start = int(byte_range[0]) if byte_range[0] else 0
+            end = int(byte_range[1]) if len(byte_range) > 1 and byte_range[1] else file_size - 1
+            length = end - start + 1
+            
+            # Read the requested range
+            with open(full_file_path, 'rb') as f:
+                f.seek(start)
+                data = f.read(length)
+            
+            # Return 206 Partial Content response
+            response = Response(data, 206, mimetype=mimetype, direct_passthrough=True)
+            response.headers.add('Content-Range', f'bytes {start}-{end}/{file_size}')
+            response.headers.add('Accept-Ranges', 'bytes')
+            response.headers.add('Content-Length', str(length))
+            return response
+        else:
+            # No range request, send full file with range support headers
+            response = send_from_directory(full_dir_path, actual_filename, mimetype=mimetype)
+            response.headers.add('Accept-Ranges', 'bytes')
+            response.headers.add('Content-Length', str(file_size))
+            return response
+    else:
+        # For images, use standard serving
+        return send_from_directory(full_dir_path, actual_filename, mimetype=mimetype)
 
 
 

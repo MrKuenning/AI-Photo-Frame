@@ -660,8 +660,12 @@ body::before {
 .hero-view:hover .metadata,
 .image-container:not(.thumbnail-only):hover .metadata {
     display: block;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+}
+
+/* Disable metadata overlay for videos to prevent dimming */
+.image-container[data-media-type="video"]:hover .metadata,
+.hero-view:has(video):hover .metadata {
+    display: none !important;
 }
 
 .metadata p {
@@ -1067,15 +1071,48 @@ button:focus:not(:focus-visible) {
         left: 200px;
     }
 
-    #large-preview-container {
+    #large-preview-container.active {
         width: 45%;
+        flex: 0 0 45%;
+    }
+}
+
+/* Tablet responsive design */
+@media (max-width: 992px) {
+
+    /* Stack toolbar controls on tablets */
+    .glass-card.mb-3 .d-flex {
+        flex-wrap: wrap !important;
+    }
+
+    /* Make thumbnail slider and search take full width on small tablets */
+    .glass-card.mb-3 .flex-shrink-0[style*="min-width: 220px"],
+    .glass-card.mb-3 .flex-shrink-0[style*="min-width: 300px"] {
+        min-width: 200px !important;
+        flex: 1 1 200px;
+    }
+
+    /* Allow breadcrumbs to wrap */
+    .glass-card.mb-3 span.text-muted {
+        white-space: normal !important;
+    }
+
+    /* Preview takes more space on tablets */
+    #large-preview-container.active {
+        width: 55%;
+        flex: 0 0 55%;
+    }
+
+    #gallery-grid-container.squished {
+        flex: 0 0 45%;
     }
 }
 
 @media (max-width: 768px) {
     .container {
-        padding-left: var(--spacing-md);
-        padding-right: var(--spacing-md);
+        padding-left: var(--spacing-sm);
+        padding-right: var(--spacing-sm);
+        padding-top: var(--spacing-sm);
     }
 
     .main-content {
@@ -1101,18 +1138,125 @@ button:focus:not(:focus-visible) {
         bottom: var(--spacing-md);
     }
 
-    #gallery-container {
+    /* Mobile toolbar layout */
+    .glass-card.mb-3 {
+        padding: var(--spacing-sm) !important;
+    }
+
+    .glass-card.mb-3 .d-flex {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: var(--spacing-sm) !important;
+    }
+
+    /* Breadcrumbs section - allow wrapping */
+    .glass-card.mb-3 span.text-muted {
+        white-space: normal !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* Hide separator on mobile */
+    .glass-card.mb-3 .d-flex>span.text-muted[style*="font-size: 1.2rem"] {
+        display: none !important;
+    }
+
+    /* Folder links - stack and wrap */
+    .glass-card.mb-3 .d-flex>div[style*="flex-wrap: wrap"] {
+        width: 100% !important;
+    }
+
+    /* Remove flex-grow spacer on mobile */
+    .glass-card.mb-3 .flex-grow-1 {
+        display: none !important;
+    }
+
+    /* Thumbnail slider - full width */
+    .glass-card.mb-3 .flex-shrink-0[style*="min-width: 220px"] {
+        min-width: 100% !important;
+        width: 100%;
+        flex: 1 1 100%;
+    }
+
+    /* Search bar - full width */
+    .glass-card.mb-3 .flex-shrink-0[style*="min-width: 300px"] {
+        min-width: 100% !important;
+        max-width: 100% !important;
+        width: 100%;
+        flex: 1 1 100%;
+    }
+
+    /* Child folders section */
+    .glass-card.mb-3 .subfolder-nav {
         flex-direction: column;
     }
 
-    #large-preview-container {
+    .glass-card.mb-3 .subfolder-btn {
         width: 100%;
-        position: relative;
+        text-align: left;
+    }
+
+    #gallery-container {
+        flex-direction: column;
+        height: auto;
+        min-height: auto;
+    }
+
+    /* Fixed: Keep preview container hidden by default on mobile */
+    #large-preview-container {
+        width: 0;
+        height: 0;
+        overflow: hidden;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1000;
+        background: var(--color-bg-primary);
+    }
+
+    /* Only show when explicitly activated */
+    #large-preview-container.active {
+        width: 100%;
+        height: 100vh;
+    }
+
+    /* Make grid take full width when preview is closed */
+    #gallery-grid-container {
+        width: 100%;
+        flex: 1;
+    }
+
+    /* Don't squish the grid on mobile - hide it instead when preview is open */
+    #gallery-grid-container.squished {
+        display: none;
     }
 
     .image-grid {
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: var(--spacing-md);
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: var(--spacing-sm);
+        padding: var(--spacing-xs);
+    }
+
+    /* Make preview card full screen on mobile */
+    .preview-card {
+        height: 100vh;
+        border-radius: 0;
+    }
+
+    /* Navbar adjustments for mobile */
+    .navbar {
+        padding: var(--spacing-sm) var(--spacing-md);
+        margin-bottom: var(--spacing-md);
+    }
+
+    .navbar-brand {
+        font-size: 1rem;
+    }
+
+    .nav-link {
+        padding: var(--spacing-xs) var(--spacing-sm) !important;
+        font-size: 0.9rem;
     }
 }
 
@@ -1193,9 +1337,7 @@ video {
 
 /* Video controls styling */
 video::-webkit-media-controls-panel {
-    background: var(--glass-bg);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: transparent;
 }
 
 video::-webkit-media-controls-play-button,
@@ -1210,8 +1352,6 @@ video::-webkit-media-controls-timeline {
     top: var(--spacing-sm);
     right: var(--spacing-sm);
     background: var(--glass-bg);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
     color: var(--color-text-primary);
     padding: var(--spacing-xs) var(--spacing-sm);
     border-radius: var(--radius-sm);

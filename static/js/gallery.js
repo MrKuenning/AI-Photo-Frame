@@ -273,6 +273,9 @@ document.addEventListener('DOMContentLoaded', function () {
             videoElement.autoplay = true;
             videoElement.loop = true;
             videoElement.muted = false;
+            videoElement.playsInline = true;
+            videoElement.setAttribute('playsinline', '');
+            videoElement.setAttribute('webkit-playsinline', '');
             videoElement.className = 'hero-image';
             videoElement.id = 'large-preview-image';
             previewImageContainer.appendChild(videoElement);
@@ -434,6 +437,9 @@ document.addEventListener('DOMContentLoaded', function () {
             videoElement.autoplay = true;
             videoElement.loop = true;
             videoElement.muted = false;
+            videoElement.playsInline = true;
+            videoElement.setAttribute('playsinline', '');
+            videoElement.setAttribute('webkit-playsinline', '');
             videoElement.className = 'hero-image';
             videoElement.id = 'large-preview-image';
             previewImageContainer.appendChild(videoElement);
