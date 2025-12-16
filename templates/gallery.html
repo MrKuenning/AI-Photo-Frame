@@ -209,6 +209,9 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Shared metadata utilities -->
+<script src="{{ url_for('static', filename='js/metadata_utils.js') }}"></script>
 <script src="{{ url_for('static', filename='js/gallery.js') }}"></script>
 <script src="{{ url_for('static', filename='js/infinite-scroll.js') }}"></script>
+<script src="{{ url_for('static', filename='js/hero_expand.js') }}"></script>
 {% endblock %}

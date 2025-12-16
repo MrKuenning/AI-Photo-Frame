@@ -132,12 +132,13 @@ def is_nsfw_content(metadata, subfolder=''):
     """Check if image metadata contains NSFW keywords or is in NSFW folder"""
     # Check folder-based filtering
     if subfolder and CONFIG.get('NSFW_FOLDERS'):
-        # Normalize subfolder path to lowercase for case-insensitive comparison
-        subfolder_lower = subfolder.lower()
+        # Normalize subfolder path: convert backslashes to forward slashes and lowercase
+        subfolder_normalized = subfolder.replace('\\', '/').lower()
         for nsfw_folder in CONFIG['NSFW_FOLDERS']:
+            nsfw_folder_lower = nsfw_folder.lower()
             # Check if any part of the path matches the NSFW folder name
-            path_parts = subfolder_lower.split('/')
-            if nsfw_folder in path_parts:
+            path_parts = subfolder_normalized.split('/')
+            if nsfw_folder_lower in path_parts:
                 return True
     
     # Check keyword-based filtering

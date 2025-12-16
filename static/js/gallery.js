@@ -127,34 +127,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!metadataElem || metadataElem.dataset.loaded) return;
 
             // Load metadata for hover display
-            fetch('/image_info/' + encodeURIComponent(container.dataset.filename))
-                .then(response => response.json())
-                .then(data => {
-                    let metadataHtml = '';
-                    if (data.prompt) {
-                        metadataHtml += `<p><strong>Prompt:</strong> ${data.prompt}</p>`;
-                    }
-                    if (data.seed) {
-                        metadataHtml += `<p><strong>Seed:</strong> ${data.seed}</p>`;
-                    }
-                    if (data.model) {
-                        metadataHtml += `<p><strong>Model:</strong> ${data.model}</p>`;
-                    }
-                    if (data.dimensions) {
-                        metadataHtml += `<p><strong>Dimensions:</strong> ${data.dimensions}</p>`;
-                    }
-                    if (data.date_time) {
-                        metadataHtml += `<p><strong>Created:</strong> ${data.date_time}</p>`;
-                    }
-                    if (data.subfolder) {
-                        metadataHtml += `<p><strong>Folder:</strong> ${data.subfolder}</p>`;
-                    }
-
-                    if (metadataElem) {
-                        metadataElem.innerHTML = metadataHtml;
-                        metadataElem.dataset.loaded = 'true';
-                    }
-                });
+            loadMetadata(container.dataset.filename, metadataElem, container.dataset.subfolder);
         });
 
         // Update current images array for preview navigation
@@ -295,7 +268,7 @@ document.addEventListener('DOMContentLoaded', function () {
         previewImageContainer.appendChild(metadataOverlay);
 
         // Load metadata
-        loadPreviewMetadata(filename);
+        loadPreviewMetadata(filename, subfolder);
 
         // Show preview panel and adjust layout
         galleryGridContainer.classList.add('squished');
@@ -318,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Load metadata for preview panel
-    function loadPreviewMetadata(filename) {
+    function loadPreviewMetadata(filename, subfolder) {
         // Show loading state in overlay if it exists
         const metadataOverlay = document.getElementById('preview-metadata-overlay');
         if (metadataOverlay) {
@@ -330,47 +303,19 @@ document.addEventListener('DOMContentLoaded', function () {
             previewMetadata.innerHTML = '<p>Loading metadata...</p>';
         }
 
-        fetch('/image_info/' + encodeURIComponent(filename))
-            .then(response => response.json())
+        // Use shared utility to load metadata
+        loadMetadata(filename, metadataOverlay, subfolder)
             .then(data => {
-                let metadataHtml = '';
-                if (data.prompt) {
-                    metadataHtml += `<p><strong>Prompt:</strong> ${data.prompt}</p>`;
-                }
-                if (data.seed) {
-                    metadataHtml += `<p><strong>Seed:</strong> ${data.seed}</p>`;
-                }
-                if (data.model) {
-                    metadataHtml += `<p><strong>Model:</strong> ${data.model}</p>`;
-                }
-                if (data.dimensions) {
-                    metadataHtml += `<p><strong>Dimensions:</strong> ${data.dimensions}</p>`;
-                }
-                if (data.date_time) {
-                    metadataHtml += `<p><strong>Created:</strong> ${data.date_time}</p>`;
-                }
-                if (data.subfolder) {
-                    metadataHtml += `<p><strong>Folder:</strong> ${data.subfolder}</p>`;
-                }
-
-                // Update the overlay metadata (primary display now)
-                if (metadataOverlay) {
-                    metadataOverlay.innerHTML = metadataHtml || '';
-                }
-
-                // Also update preview metadata panel if it exists
-                if (previewMetadata) {
-                    previewMetadata.innerHTML = metadataHtml || '<p>No metadata available</p>';
+                // Also update preview metadata panel if it exists with same content
+                if (previewMetadata && metadataOverlay) {
+                    previewMetadata.innerHTML = metadataOverlay.innerHTML || '<p>No metadata available</p>';
                 }
             })
             .catch(error => {
-                if (metadataOverlay) {
-                    metadataOverlay.innerHTML = '<p>Error loading metadata</p>';
-                }
+                // Error handling is already done in loadMetadata
                 if (previewMetadata) {
                     previewMetadata.innerHTML = '<p>Error loading metadata</p>';
                 }
-                console.error('Error loading metadata:', error);
             });
     }
 
@@ -459,7 +404,7 @@ document.addEventListener('DOMContentLoaded', function () {
         previewImageContainer.appendChild(metadataOverlay);
 
         // Load metadata
-        loadPreviewMetadata(filename);
+        loadPreviewMetadata(filename, subfolder);
 
         // Remove selected class from all images
         document.querySelectorAll('.image-container').forEach(container => {

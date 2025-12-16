@@ -680,6 +680,89 @@ body::before {
 }
 
 /* ==========================================
+   Hero Image Expanded Mode
+   ========================================== */
+/* Expanded container - fullscreen overlay */
+.hero-expanded {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9999 !important;
+    background: rgba(0, 0, 0, 0.95) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    backdrop-filter: none !important;
+    border: none !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    overflow: hidden !important;
+    animation: fadeIn var(--transition-base) ease-out;
+}
+
+/* Hero image in expanded mode */
+.hero-expanded .hero-image {
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+    cursor: zoom-out !important;
+}
+
+/* Ensure navigation buttons are visible in expanded mode */
+.hero-expanded~.card-footer,
+.hero-expanded .card-footer {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 10000 !important;
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-top: 1px solid var(--glass-border) !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+}
+
+/* For gallery page - ensure preview card footer stays visible */
+.preview-card-body.hero-expanded~.card-footer {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 10000 !important;
+}
+
+/* Metadata overlay in expanded mode - hide by default, show on hover */
+.hero-expanded .metadata {
+    position: fixed !important;
+    bottom: 60px !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 10000 !important;
+    max-height: 30vh !important;
+    border-radius: 0 !important;
+}
+
+/* Hide other UI elements when expanded */
+.hero-expanded~* {
+    display: none;
+}
+
+/* But keep the navigation footer visible */
+body:has(.hero-expanded) .card-footer {
+    display: flex !important;
+}
+
+
+/* ==========================================
    Gallery Page
    ========================================== */
 #gallery-container {

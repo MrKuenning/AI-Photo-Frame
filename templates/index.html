@@ -88,10 +88,14 @@
 {% block scripts %}
 <!-- Live auto-update for new images -->
 <script src="{{ url_for('static', filename='js/live_update.js') }}"></script>
+<!-- Shared metadata utilities -->
+<script src="{{ url_for('static', filename='js/metadata_utils.js') }}"></script>
 <!-- Hero view metadata loader -->
 <script src="{{ url_for('static', filename='js/hero_metadata.js') }}"></script>
 <!-- Home page navigation -->
 <script src="{{ url_for('static', filename='js/index_navigation.js') }}"></script>
+<!-- Hero image expand functionality -->
+<script src="{{ url_for('static', filename='js/hero_expand.js') }}"></script>
 <!-- Simplified thumbnail click handler -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
