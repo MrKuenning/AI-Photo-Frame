@@ -29,7 +29,29 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            // Toggle expanded state
+            // For videos, prevent the default play/pause toggle behavior
+            if (heroImage.tagName === 'VIDEO') {
+                e.preventDefault();
+                // Store current play state to restore after expand/collapse
+                const wasPlaying = !heroImage.paused;
+
+                // Toggle expanded state
+                if (isExpanded) {
+                    collapseHeroImage();
+                } else {
+                    expandHeroImage(heroImage);
+                }
+
+                // Restore play state after a brief delay to let the DOM settle
+                if (wasPlaying) {
+                    setTimeout(() => {
+                        heroImage.play().catch(err => console.log('[HERO EXPAND] Could not resume video:', err));
+                    }, 50);
+                }
+                return;
+            }
+
+            // Toggle expanded state (for images)
             if (isExpanded) {
                 collapseHeroImage();
             } else {
