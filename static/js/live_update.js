@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Poll for new images every 3 seconds
     setInterval(() => {
-        fetch('/')
+        fetch(window.location.href)
             .then(response => response.text())
             .then(html => {
                 const parser = new DOMParser();
