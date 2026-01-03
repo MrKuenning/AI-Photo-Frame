@@ -7,6 +7,7 @@ from flask_paginate import Pagination, get_page_parameter
 from flask_socketio import SocketIO
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from metadata_extractor import extract_embedded_metadata
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", ping_timeout=60, ping_interval=25)
@@ -707,10 +708,31 @@ def delete_image(filename):
 
 @app.route('/image_info/<path:filename>')
 def image_info(filename):
-    """Get image metadata"""
+    """Get image metadata - combines filename parsing with embedded metadata"""
     for img in image_list:
         if img['filename'] == filename:
-            return jsonify(img['metadata'])
+            # Start with filename-based metadata
+            result = dict(img['metadata'])
+            
+            # Try to extract embedded metadata from the file
+            try:
+                embedded = extract_embedded_metadata(img['path'])
+                
+                # Merge embedded metadata, preferring embedded values when available
+                if embedded.get('prompt'):
+                    result['prompt'] = embedded['prompt']
+                if embedded.get('negative_prompt'):
+                    result['negative_prompt'] = embedded['negative_prompt']
+                if embedded.get('seed'):
+                    result['seed'] = embedded['seed']
+                if embedded.get('model'):
+                    result['model'] = embedded['model']
+                if embedded.get('dimensions'):
+                    result['dimensions'] = embedded['dimensions']
+            except Exception as e:
+                print(f"[METADATA] Error extracting embedded metadata: {e}")
+            
+            return jsonify(result)
     return jsonify({})
 
 

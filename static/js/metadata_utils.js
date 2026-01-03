@@ -12,6 +12,9 @@ function formatMetadataHTML(data, subfolder = '') {
     if (data.prompt) {
         metadataHtml += `<p><strong>Prompt:</strong> ${data.prompt}</p>`;
     }
+    if (data.negative_prompt) {
+        metadataHtml += `<p><strong>Negative Prompt:</strong> ${data.negative_prompt}</p>`;
+    }
     if (data.seed) {
         metadataHtml += `<p><strong>Seed:</strong> ${data.seed}</p>`;
     }

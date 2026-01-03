@@ -160,9 +160,15 @@
             </div>
             <div class="card-footer"
                 style="background: var(--color-surface); border-top: 1px solid var(--color-border); padding: var(--spacing-md);">
-                <div class="d-flex justify-content-between gap-2">
+                <div class="d-flex justify-content-between align-items-center gap-2">
                     <button type="button" class="btn btn-outline-primary flex-grow-1" id="prev-image">
                         <i class="bi bi-arrow-left"></i> Previous
+                    </button>
+                    <button type="button" class="toggle-btn toggle-metadata-btn" title="Show Metadata">
+                        <i class="bi bi-info-circle"></i>
+                    </button>
+                    <button type="button" class="toggle-btn toggle-fullscreen-btn" title="Enter Fullscreen">
+                        <i class="bi bi-arrows-fullscreen"></i>
                     </button>
                     <button type="button" class="btn btn-outline-primary flex-grow-1" id="next-image">
                         Next <i class="bi bi-arrow-right"></i>
@@ -211,7 +217,11 @@
 {% block scripts %}
 <!-- Shared metadata utilities -->
 <script src="{{ url_for('static', filename='js/metadata_utils.js') }}"></script>
+<!-- Media toggle controls -->
+<script src="{{ url_for('static', filename='js/media_controls.js') }}"></script>
 <script src="{{ url_for('static', filename='js/gallery.js') }}"></script>
 <script src="{{ url_for('static', filename='js/infinite-scroll.js') }}"></script>
 <script src="{{ url_for('static', filename='js/hero_expand.js') }}"></script>
+<!-- Custom video controls -->
+<script src="{{ url_for('static', filename='js/video_controls.js') }}"></script>
 {% endblock %}

@@ -95,6 +95,11 @@ document.addEventListener('DOMContentLoaded', function () {
         // Prevent body scroll when expanded
         document.body.style.overflow = 'hidden';
 
+        // Sync button state with media_controls.js
+        if (typeof window.syncFullscreenState === 'function') {
+            window.syncFullscreenState(true);
+        }
+
         console.log('[HERO EXPAND] Expanded hero image');
     }
 
@@ -132,6 +137,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         isExpanded = false;
         expandedContainer = null;
+
+        // Sync button state with media_controls.js
+        if (typeof window.syncFullscreenState === 'function') {
+            window.syncFullscreenState(false);
+        }
 
         console.log('[HERO EXPAND] Collapsed hero image');
     }

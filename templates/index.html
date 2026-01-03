@@ -68,9 +68,15 @@
         <!-- Navigation Buttons -->
         <div class="card-footer"
             style="background: var(--color-surface); border-top: 1px solid var(--color-border); padding: var(--spacing-md); margin-top: var(--spacing-md);">
-            <div class="d-flex justify-content-between gap-2">
+            <div class="d-flex justify-content-between align-items-center gap-2">
                 <button type="button" class="btn btn-outline-primary flex-grow-1" id="home-prev-image">
                     <i class="bi bi-arrow-left"></i> Previous
+                </button>
+                <button type="button" class="toggle-btn toggle-metadata-btn" title="Show Metadata">
+                    <i class="bi bi-info-circle"></i>
+                </button>
+                <button type="button" class="toggle-btn toggle-fullscreen-btn" title="Enter Fullscreen">
+                    <i class="bi bi-arrows-fullscreen"></i>
                 </button>
                 <button type="button" class="btn btn-outline-primary flex-grow-1" id="home-next-image">
                     Next <i class="bi bi-arrow-right"></i>
@@ -90,12 +96,16 @@
 <script src="{{ url_for('static', filename='js/live_update.js') }}"></script>
 <!-- Shared metadata utilities -->
 <script src="{{ url_for('static', filename='js/metadata_utils.js') }}"></script>
+<!-- Media toggle controls -->
+<script src="{{ url_for('static', filename='js/media_controls.js') }}"></script>
 <!-- Hero view metadata loader -->
 <script src="{{ url_for('static', filename='js/hero_metadata.js') }}"></script>
 <!-- Home page navigation -->
 <script src="{{ url_for('static', filename='js/index_navigation.js') }}"></script>
 <!-- Hero image expand functionality -->
 <script src="{{ url_for('static', filename='js/hero_expand.js') }}"></script>
+<!-- Custom video controls -->
+<script src="{{ url_for('static', filename='js/video_controls.js') }}"></script>
 <!-- Simplified thumbnail click handler -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {

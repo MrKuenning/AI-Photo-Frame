@@ -6,9 +6,25 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ## [2026-01-02]
 
+### Added
+- **Embedded metadata extraction** - The application now reads full prompts, negative prompts, seed, model, and dimensions from embedded file metadata (EXIF, PNG chunks, video comments) instead of just parsing filenames. Supports A1111/Forge text format and JSON format (WanGP, ComfyUI). Metadata is extracted on-demand when hovering/clicking for performance.
+  - New file: `metadata_extractor.py`
+  - Updated: `Image_Viewer.py`, `static/js/metadata_utils.js`
+- **Metadata and fullscreen toggle buttons** - Replaced hover-based metadata display with toggle buttons in the navigation footer. Two new round buttons appear between Previous/Next: info icon to toggle metadata overlay, and fullscreen icon to toggle expanded view. Works for both images and videos without covering video controls.
+  - New file: `static/js/media_controls.js`
+  - Updated: `templates/index.html`, `templates/gallery.html`, `static/css/style.css`
+- **Custom video controls** - Replaced native browser video controls with custom styled controls that auto-hide after 3 seconds. Features play/pause button, progress bar with seek, time display, and mute button. Eliminates the large Android play button overlay that obscures paused videos.
+  - New file: `static/js/video_controls.js`
+  - Updated: `static/css/style.css`
+
 ### Fixed
 - **Media type filter not working on home page refresh** - When filtering by "Photos" on the home page, the live update polling would ignore the filter and display the most recent file regardless of type (including videos). Fixed by changing the live update fetch to use `window.location.href` instead of `/`, preserving all URL query parameters including `?media_type=photos`.
   - File: `static/js/live_update.js`
+- **Video not filling screen on Android** - Expanded videos now use 100% dimensions instead of fixed viewport calculations, improving compatibility with Android mobile browsers.
+  - File: `static/css/style.css`
+- **Video metadata not showing** - Added filename parsing fallback for video metadata when ffprobe is not available. Videos now show seed and prompt extracted from filename patterns.
+  - File: `metadata_extractor.py`
+- **Prompt showing as Chinese characters** - Fixed encoding detection to try UTF-8 first before falling back to UTF-16, preventing ASCII text from being misinterpreted.
 
 
 ## [2025-12-20]
