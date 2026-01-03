@@ -13,6 +13,12 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 - **Custom video controls** - Replaced native browser video controls with custom styled controls that auto-hide after 3 seconds. Features play/pause button, progress bar with seek, time display, and mute button. Eliminates the large Android play button overlay that obscures paused videos.
 
+- **Video frame navigation buttons** - Added four new custom video control buttons: First Frame (⏮), Step Back (◀), Step Forward (▶), and Last Frame (⏭). Perfect for AI-generated videos where you want to see the final result or step through frames.
+
+- **Mobile-responsive video controls** - On mobile devices, the progress bar moves to its own full-width line above the buttons for easier seeking. All buttons are larger for better touch targets.
+
+- **Mobile-responsive sidebar** - On narrow screens, the thumbnail sidebar moves below the main image with a scrollable grid layout. Sidebar toggle button is fixed at top-left for easy access.
+
 
 ### Fixed
 - **Media type filter not working on home page refresh** - When filtering by "Photos" on the home page, the live update polling would ignore the filter and display the most recent file regardless of type (including videos). Fixed by changing the live update fetch to use `window.location.href` instead of `/`, preserving all URL query parameters including `?media_type=photos`.

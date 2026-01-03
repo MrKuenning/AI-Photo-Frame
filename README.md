@@ -38,8 +38,13 @@ It monitors a folder for new images and videos and updates image and video files
 
 ### 🎬 Video Support
 - Plays MP4, WebM, MOV, AVI, MKV, and M4V formats
+- **Custom video controls** with auto-hide (no native browser overlays)
+- **Frame navigation** - First frame, step back/forward, last frame buttons
+- Seekable progress bar with time display
+- Mobile-responsive layout with larger touch targets
 - Auto-play with loop
-- Same navigation controls as images
+
+📋 See [CHANGELOG.md](CHANGELOG.md) for recent updates and fixes.
 
 ## 📋 Requirements
 

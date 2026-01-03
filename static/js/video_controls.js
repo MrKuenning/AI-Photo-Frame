@@ -49,11 +49,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 <button class="video-btn video-play-btn" title="Play/Pause">
                     <i class="bi bi-play-fill"></i>
                 </button>
+                <button class="video-btn video-first-btn" title="First Frame">
+                    <i class="bi bi-skip-start-fill"></i>
+                </button>
+                <button class="video-btn video-stepback-btn" title="Step Back">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
                 <div class="video-progress-container">
                     <div class="video-progress-bar">
                         <div class="video-progress-fill"></div>
                     </div>
                 </div>
+                <button class="video-btn video-stepfwd-btn" title="Step Forward">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+                <button class="video-btn video-last-btn" title="Last Frame">
+                    <i class="bi bi-skip-end-fill"></i>
+                </button>
                 <span class="video-time">0:00 / 0:00</span>
                 <button class="video-btn video-mute-btn" title="Mute/Unmute">
                     <i class="bi bi-volume-up-fill"></i>
@@ -66,10 +78,50 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Get control elements
         const playBtn = controls.querySelector('.video-play-btn');
+        const firstBtn = controls.querySelector('.video-first-btn');
+        const stepBackBtn = controls.querySelector('.video-stepback-btn');
+        const stepFwdBtn = controls.querySelector('.video-stepfwd-btn');
+        const lastBtn = controls.querySelector('.video-last-btn');
         const muteBtn = controls.querySelector('.video-mute-btn');
         const progressContainer = controls.querySelector('.video-progress-container');
         const progressFill = controls.querySelector('.video-progress-fill');
         const timeDisplay = controls.querySelector('.video-time');
+
+        // Frame step amount (approximate - 1/30th of a second for 30fps video)
+        const FRAME_STEP = 1 / 30;
+
+        // First frame button
+        firstBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            video.pause();
+            video.currentTime = 0;
+            showControls();
+        });
+
+        // Step back button (one frame)
+        stepBackBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            video.pause();
+            video.currentTime = Math.max(0, video.currentTime - FRAME_STEP);
+            showControls();
+        });
+
+        // Step forward button (one frame)
+        stepFwdBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            video.pause();
+            video.currentTime = Math.min(video.duration, video.currentTime + FRAME_STEP);
+            showControls();
+        });
+
+        // Last frame button
+        lastBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            video.pause();
+            // Go slightly before the end so the last frame is visible
+            video.currentTime = Math.max(0, video.duration - 0.01);
+            showControls();
+        });
 
         // Auto-hide timer
         let hideTimeout;
