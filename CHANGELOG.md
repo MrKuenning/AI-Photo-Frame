@@ -4,6 +4,18 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-01-03]
+
+### Changed
+- **Responsive navbar layout** - Implemented three-view responsive navigation:
+
+### Fixed
+- **Mobile expanded video controls** - Fixed video controls positioning in expanded mode on mobile using flexbox column layout. Controls now stay visible and correctly positioned above the navigation footer without jumping or being pushed off-screen by tall videos
+
+- **Mobile sidebar visibility** - Sidebar/thumbnails now correctly hide when video is expanded on mobile to maximize screen space
+
+---
+
 ## [2026-01-02]
 
 ### Added

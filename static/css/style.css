@@ -1615,6 +1615,142 @@ video::-webkit-media-controls-timeline {
 /* ==========================================
    Mobile Responsive Styles
    ========================================== */
+
+/* MEDIUM VIEW: 768px - 991px */
+/* Row 1: Brand + Nav Links */
+/* Row 2: Filter buttons + Safe Mode + Fullscreen */
+@media (max-width: 1100px) and (min-width: 768px) {
+
+    /* Container wraps to allow row 2 */
+    .navbar .container-fluid {
+        flex-wrap: wrap !important;
+    }
+
+    /* Make collapse children act as direct children of container-fluid */
+    /* More specific selector to beat Bootstrap */
+    nav.navbar .navbar-collapse,
+    nav.navbar #navbarNav,
+    .navbar-expand-md .navbar-collapse {
+        display: contents !important;
+    }
+
+    /* Nav links inline on row 1 */
+    .navbar-nav:first-of-type {
+        flex-direction: row !important;
+        order: 2;
+    }
+
+    /* Line break before row 2 */
+    .navbar .container-fluid::before {
+        content: "";
+        width: 100%;
+        order: 5;
+    }
+
+    /* Filter buttons - on row 2 */
+    .navbar-nav.mx-auto {
+        order: 10;
+        margin-top: var(--spacing-xs) !important;
+        margin-left: 0 !important;
+        justify-content: flex-start !important;
+    }
+
+    /* Controls on same row as filter, pushed right */
+    .navbar .d-flex.align-items-center {
+        order: 11;
+        margin-top: var(--spacing-xs) !important;
+        margin-left: auto !important;
+    }
+
+    .media-filter-btn {
+        padding: 4px 8px !important;
+        font-size: 0.75rem;
+    }
+
+    .form-check-label {
+        font-size: 0.75rem;
+    }
+}
+
+/* NARROW VIEW: <= 768px */
+/* Row 1: Brand + Hamburger */
+/* Row 2: Nav Links (when toggled) */
+/* Row 3: Filter buttons + Safe Mode + Fullscreen */
+@media (max-width: 768px) {
+    .navbar {
+        padding: var(--spacing-xs) var(--spacing-sm) !important;
+    }
+
+    .navbar .container-fluid {
+        flex-wrap: wrap !important;
+    }
+
+    /* Brand left, hamburger right */
+    .navbar-brand {
+        flex: 1;
+        font-size: 1rem;
+        padding: 0 !important;
+    }
+
+    .navbar-toggler {
+        order: 2;
+    }
+
+    /* Nav collapse - full width when shown */
+    .navbar-collapse {
+        flex-wrap: wrap !important;
+        flex-basis: 100% !important;
+        justify-content: center !important;
+        order: 3;
+    }
+
+    .navbar-collapse.show,
+    .navbar-collapse.collapsing {
+        display: flex !important;
+    }
+
+    /* Nav links: centered row 2 */
+    .navbar-nav:first-of-type {
+        flex-direction: row !important;
+        flex-basis: 100% !important;
+        justify-content: center !important;
+        gap: 0 !important;
+        padding: var(--spacing-xs) 0;
+    }
+
+    .navbar-nav .nav-link {
+        padding: var(--spacing-xs) var(--spacing-sm) !important;
+        font-size: 0.85rem;
+    }
+
+    /* Row 3: filter buttons + controls */
+    .navbar-nav.mx-auto {
+        flex-basis: auto !important;
+        order: 10;
+        margin: var(--spacing-xs) 0 0 0 !important;
+    }
+
+    .navbar .d-flex.align-items-center {
+        order: 11;
+        margin: var(--spacing-xs) 0 0 var(--spacing-md) !important;
+        gap: var(--spacing-sm) !important;
+    }
+
+    .media-filter-btn {
+        padding: 4px 8px !important;
+        font-size: 0.75rem;
+    }
+
+    .form-check-label {
+        font-size: 0.75rem;
+    }
+
+    #page-fullscreen-toggle {
+        padding: 4px 8px !important;
+    }
+}
+
+/* Content layout mobile styles */
 @media (max-width: 768px) {
 
     /* Stack main content vertically on mobile */
@@ -1633,7 +1769,6 @@ video::-webkit-media-controls-timeline {
         min-height: 150px;
         max-height: 400px;
         order: 2;
-        /* Put below the main image */
         overflow-y: auto !important;
         overflow-x: hidden !important;
         padding: var(--spacing-md);
@@ -1652,7 +1787,6 @@ video::-webkit-media-controls-timeline {
     .sidebar-toggle {
         position: fixed;
         top: 70px;
-        /* Below header */
         left: var(--spacing-sm);
         z-index: 1000;
     }
@@ -1682,33 +1816,28 @@ video::-webkit-media-controls-timeline {
         padding: var(--spacing-sm);
     }
 
-    /* Each thumbnail item wrapper */
     .thumbnail-grid>div,
     .thumbnail-grid>.mb-2 {
         margin-bottom: 0 !important;
     }
 
-    /* Thumbnail container sizing */
     .thumbnail-grid .image-container {
         width: 100% !important;
         height: 80px !important;
     }
 
-    /* Make thumbnails fill their containers */
     .thumbnail-grid .thumbnail {
         width: 100% !important;
         height: 100% !important;
         object-fit: cover !important;
     }
 
-    /* Toggle buttons: slightly larger for touch */
     .toggle-btn {
         width: 40px;
         height: 40px;
         font-size: 1.1rem;
     }
 
-    /* Navigation buttons: stack if needed */
     .card-footer .d-flex {
         flex-wrap: wrap;
     }
@@ -1723,7 +1852,6 @@ video::-webkit-media-controls-timeline {
         padding: var(--spacing-sm) !important;
     }
 
-    /* Progress bar: full width on its own line at top */
     .video-progress-container {
         order: -1;
         flex: none !important;
@@ -1736,14 +1864,12 @@ video::-webkit-media-controls-timeline {
         height: 8px !important;
     }
 
-    /* Larger video buttons for touch */
     .video-btn {
         width: 40px !important;
         height: 40px !important;
         font-size: 1.2rem;
     }
 
-    /* Time display: smaller on mobile */
     .video-time {
         font-size: 0.7rem !important;
         min-width: 70px !important;
@@ -1755,11 +1881,10 @@ video::-webkit-media-controls-timeline {
         top: 0 !important;
         left: 0 !important;
         right: 0 !important;
-        bottom: 0 !important;
+        bottom: 60px !important;
         width: 100vw !important;
-        height: 100vh !important;
-        height: 100dvh !important;
-        /* Dynamic viewport for mobile */
+        height: calc(100vh - 60px) !important;
+        height: calc(100dvh - 60px) !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: flex-start !important;
@@ -1769,13 +1894,10 @@ video::-webkit-media-controls-timeline {
         padding: 0 !important;
     }
 
-    /* Video fills available space above controls but doesn't overflow */
     .hero-expanded .hero-image,
     .hero-expanded video.hero-image {
         flex: 1 1 0 !important;
-        /* Can grow AND shrink, base size 0 */
         min-height: 0 !important;
-        /* Allow shrinking below content size */
         width: 100% !important;
         height: auto !important;
         max-height: 100% !important;
@@ -1783,7 +1905,6 @@ video::-webkit-media-controls-timeline {
         overflow: hidden !important;
     }
 
-    /* Video controls - static at bottom of video area, no fixed positioning */
     .hero-expanded .custom-video-controls,
     .hero-expanded .custom-video-controls.visible {
         position: relative !important;
@@ -1798,7 +1919,6 @@ video::-webkit-media-controls-timeline {
         pointer-events: auto !important;
     }
 
-    /* Navigation footer on mobile expanded - also static in column */
     body:has(.hero-expanded) .card-footer {
         position: fixed !important;
         bottom: 0 !important;
@@ -1808,14 +1928,6 @@ video::-webkit-media-controls-timeline {
         z-index: 10000 !important;
     }
 
-    /* Adjust expanded container to leave room for footer */
-    .hero-expanded {
-        bottom: 60px !important;
-        height: calc(100vh - 60px) !important;
-        height: calc(100dvh - 60px) !important;
-    }
-
-    /* Hide sidebar/thumbnails when expanded on mobile */
     body:has(.hero-expanded) .sidebar,
     .hero-expanded~.sidebar {
         display: none !important;
