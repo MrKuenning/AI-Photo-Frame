@@ -1597,3 +1597,161 @@ video::-webkit-media-controls-timeline {
     border-color: var(--color-accent-primary);
     color: var(--color-accent-primary);
 }
+
+/* ==========================================
+   Mobile Responsive Styles
+   ========================================== */
+@media (max-width: 768px) {
+
+    /* Stack main content vertically on mobile */
+    .main-content {
+        flex-direction: column;
+        height: auto;
+        min-height: calc(100vh - 140px);
+        overflow: visible;
+    }
+
+    /* Sidebar: full width scrollable area below main image */
+    .sidebar {
+        width: 100% !important;
+        min-width: 100% !important;
+        height: 400px;
+        min-height: 150px;
+        max-height: 400px;
+        order: 2;
+        /* Put below the main image */
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding: var(--spacing-md);
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .sidebar.collapsed {
+        min-height: 0;
+        max-height: 0 !important;
+        height: 0 !important;
+        padding: 0;
+        overflow: hidden !important;
+    }
+
+    /* Sidebar toggle: fixed position at top-left for easy access */
+    .sidebar-toggle {
+        position: fixed;
+        top: 70px;
+        /* Below header */
+        left: var(--spacing-sm);
+        z-index: 1000;
+    }
+
+    .sidebar.collapsed~.sidebar-toggle {
+        left: var(--spacing-sm);
+    }
+
+    /* Main image container: full width, takes priority */
+    .main-image-container {
+        order: 1;
+        flex: none;
+        height: 60vh;
+        min-height: 300px;
+    }
+
+    .main-image-container.expanded {
+        padding-left: var(--spacing-md);
+    }
+
+    /* Thumbnail grid: vertical scroll grid on mobile */
+    .thumbnail-grid {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: var(--spacing-sm);
+        width: 100%;
+        padding: var(--spacing-sm);
+    }
+
+    /* Each thumbnail item wrapper */
+    .thumbnail-grid>div,
+    .thumbnail-grid>.mb-2 {
+        margin-bottom: 0 !important;
+    }
+
+    /* Thumbnail container sizing */
+    .thumbnail-grid .image-container {
+        width: 100% !important;
+        height: 80px !important;
+    }
+
+    /* Make thumbnails fill their containers */
+    .thumbnail-grid .thumbnail {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+    }
+
+    /* Toggle buttons: slightly larger for touch */
+    .toggle-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+    }
+
+    /* Navigation buttons: stack if needed */
+    .card-footer .d-flex {
+        flex-wrap: wrap;
+    }
+
+    .card-footer .btn {
+        min-width: 100px;
+    }
+
+    /* Gallery adjustments */
+    #gallery-container {
+        flex-direction: column;
+        height: auto;
+    }
+
+    #gallery-grid-container,
+    #gallery-grid-container.squished {
+        flex: none !important;
+        width: 100% !important;
+    }
+
+    #large-preview-container,
+    #large-preview-container.active {
+        width: 100% !important;
+        flex: none !important;
+        height: 60vh;
+        margin-top: var(--spacing-md);
+    }
+}
+
+/* Small phone adjustments */
+@media (max-width: 480px) {
+    .header-content {
+        padding: var(--spacing-sm);
+    }
+
+    .main-image-container {
+        height: 50vh;
+        padding: var(--spacing-sm);
+    }
+
+    .sidebar-toggle {
+        top: 60px;
+        width: 32px;
+        height: 32px;
+    }
+
+    .card-footer .d-flex {
+        gap: var(--spacing-xs) !important;
+    }
+
+    .card-footer .btn {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: 0.85rem;
+    }
+
+    .toggle-btn {
+        width: 32px;
+        height: 32px;
+    }
+}
