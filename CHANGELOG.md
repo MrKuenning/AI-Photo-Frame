@@ -4,6 +4,23 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-01-04]
+
+### Fixed
+- **Gallery preview panel appearing on small screens**<br>
+  Fixed responsive CSS that was incorrectly showing the preview panel (width: 100%) even when no image was selected. Now properly hides with width: 0 until an image is clicked.
+
+- **Video black screen in gallery expanded view**<br>
+  Fixed video not displaying when expanding to fullscreen on the gallery page. The issue was caused by the container using `flex-direction: row`, which placed the video and controls side-by-side and squished the video to 0px width. Added `flex-direction: column` to stack them vertically.
+
+- **Videos stretching to fill expanded view**<br>
+  Videos in fullscreen/expanded view now properly fill the available space above the navigation footer bar, with controls remaining accessible.
+
+- **Video pausing when entering expanded mode**<br>
+  Fixed videos pausing when clicking to expand to fullscreen. Now preserves play state and resumes playback after expansion.
+
+---
+
 ## [2026-01-03]
 
 ### Added
