@@ -6,52 +6,78 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ## [2026-01-03]
 
+### Added
+- **Save video frame button**
+  New camera icon in video controls captures the current frame and saves as a JPEG (95% quality). Filename format: `video.mp4-00001.jpg`. Saved frames inherit the video's modification date.
+
+- **Delete button on home page**
+  Added trash icon button next to metadata button. Shows confirmation dialog before permanently deleting the current image/video.
+
 ### Changed
-- **Responsive navbar layout** - Implemented three-view responsive navigation:
+- **Responsive navbar layout**
+  Implemented three-view responsive navigation with breakpoint at 1050px.
 
 ### Fixed
-- **Mobile expanded video controls** - Fixed video controls positioning in expanded mode on mobile using flexbox column layout. Controls now stay visible and correctly positioned above the navigation footer without jumping or being pushed off-screen by tall videos
+- **Mobile expanded video controls**
+  Fixed video controls positioning in expanded mode on mobile using flexbox column layout.
 
-- **Mobile sidebar visibility** - Sidebar/thumbnails now correctly hide when video is expanded on mobile to maximize screen space
+- **Mobile video controls overflow**
+  Made video control buttons smaller (32x32) and hid time display when not expanded to prevent overflow.
 
 ---
 
 ## [2026-01-02]
 
 ### Added
-- **Embedded metadata extraction** - The application now reads full prompts, negative prompts, seed, model, and dimensions from embedded file metadata (EXIF, PNG chunks, video comments) instead of just parsing filenames. Supports A1111/Forge text format and JSON format (WanGP, ComfyUI). Metadata is extracted on-demand when hovering/clicking for performance.
+- **Embedded metadata extraction**
+  The application now reads full prompts, negative prompts, seed, model, and dimensions from embedded file metadata (EXIF, PNG chunks, video comments). Supports A1111/Forge and JSON format (WanGP, ComfyUI).
 
-- **Metadata and fullscreen toggle buttons** - Replaced hover-based metadata display with toggle buttons in the navigation footer. Two new round buttons appear between Previous/Next: info icon to toggle metadata overlay, and fullscreen icon to toggle expanded view. Works for both images and videos without covering video controls.
+- **Metadata and fullscreen toggle buttons**
+  Replaced hover-based metadata display with toggle buttons in the navigation footer. Info icon toggles metadata overlay, fullscreen icon toggles expanded view.
 
-- **Custom video controls** - Replaced native browser video controls with custom styled controls that auto-hide after 3 seconds. Features play/pause button, progress bar with seek, time display, and mute button. Eliminates the large Android play button overlay that obscures paused videos.
+- **Custom video controls**
+  Replaced native browser video controls with custom styled controls that auto-hide after 3 seconds. Features play/pause, progress bar, time display, and mute button.
 
-- **Video frame navigation buttons** - Added four new custom video control buttons: First Frame (⏮), Step Back (◀), Step Forward (▶), and Last Frame (⏭). Perfect for AI-generated videos where you want to see the final result or step through frames.
+- **Video frame navigation buttons**
+  Added four buttons: First Frame (⏮), Step Back (◀), Step Forward (▶), and Last Frame (⏭). Perfect for stepping through AI-generated videos.
 
-- **Mobile-responsive video controls** - On mobile devices, the progress bar moves to its own full-width line above the buttons for easier seeking. All buttons are larger for better touch targets.
+- **Mobile-responsive video controls**
+  On mobile devices, the progress bar moves to its own full-width line above the buttons for easier seeking.
 
-- **Mobile-responsive sidebar** - On narrow screens, the thumbnail sidebar moves below the main image with a scrollable grid layout. Sidebar toggle button is fixed at top-left for easy access.
-
+- **Mobile-responsive sidebar**
+  On narrow screens, the thumbnail sidebar moves below the main image with a scrollable grid layout.
 
 ### Fixed
-- **Media type filter not working on home page refresh** - When filtering by "Photos" on the home page, the live update polling would ignore the filter and display the most recent file regardless of type (including videos). Fixed by changing the live update fetch to use `window.location.href` instead of `/`, preserving all URL query parameters including `?media_type=photos`.
+- **Media type filter not working on home page refresh**
+  Fixed by changing live update fetch to use `window.location.href` instead of `/`, preserving URL query parameters.
 
-- **Video not filling screen on Android** - Expanded videos now use 100% dimensions instead of fixed viewport calculations, improving compatibility with Android mobile browsers.
+- **Video not filling screen on Android**
+  Expanded videos now use 100% dimensions instead of fixed viewport calculations.
 
-- **Video metadata not showing** - Added filename parsing fallback for video metadata when ffprobe is not available. Videos now show seed and prompt extracted from filename patterns.
+- **Video metadata not showing**
+  Added filename parsing fallback for video metadata when ffprobe is not available.
 
-- **Prompt showing as Chinese characters** - Fixed encoding detection to try UTF-8 first before falling back to UTF-16, preventing ASCII text from being misinterpreted.
+- **Prompt showing as Chinese characters**
+  Fixed encoding detection to try UTF-8 first before falling back to UTF-16.
 
+---
 
 ## [2025-12-20]
 
 ### Fixed
-- **Fullscreen video scaling** - Videos in fullscreen view on home and gallery pages now properly stretch to fit the entire screen.
+- **Fullscreen video scaling**
+  Videos in fullscreen view on home and gallery pages now properly stretch to fit the entire screen.
 
+---
 
 ## [2025-12-16]
 
 ### Changed
-- **Improved UI responsiveness** - Enhanced responsive design for all screen sizes, including proper mobile stacking for modal edit fields.
+- **Improved UI responsiveness**
+  Enhanced responsive design for all screen sizes, including proper mobile stacking for modal edit fields.
 
 ### Refactored
+- **Standardized metadata display**
+  Created shared `metadata_utils.js` module for consistent metadata loading across home, gallery, and frame pages.
+
 - **Standardized metadata display** - Created shared `metadata_utils.js` module for consistent metadata loading and display across home, gallery, and frame pages.

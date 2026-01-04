@@ -773,6 +773,75 @@ def check_new_images():
     return jsonify({'new_image': False})
 
 
+@app.route('/save-frame', methods=['POST'])
+def save_frame():
+    """Save current video frame as a JPEG image"""
+    import base64
+    import glob
+    
+    try:
+        data = request.get_json()
+        video_filename = data.get('video_filename', '')
+        image_data = data.get('image_data', '')
+        
+        if not video_filename or not image_data:
+            return jsonify({'success': False, 'error': 'Missing video_filename or image_data'})
+        
+        # Find the video file by searching recursively
+        video_path = None
+        for root, dirs, files in os.walk(CONFIG['IMAGE_FOLDER']):
+            if video_filename in files:
+                video_path = os.path.join(root, video_filename)
+                break
+        
+        if not video_path:
+            return jsonify({'success': False, 'error': f'Video file not found: {video_filename}'})
+        
+        # Find next available frame number
+        video_dir = os.path.dirname(video_path)
+        base_name = video_filename  # Keep full video name including extension
+        
+        # Find existing frame files for this video
+        pattern = os.path.join(video_dir, f"{base_name}-*.jpg")
+        existing_frames = glob.glob(pattern)
+        
+        # Extract numbers and find the next one
+        max_num = 0
+        for frame_path in existing_frames:
+            try:
+                # Extract number from filename like "video.mp4-00001.jpg"
+                frame_name = os.path.basename(frame_path)
+                num_str = frame_name.replace(f"{base_name}-", "").replace(".jpg", "")
+                num = int(num_str)
+                max_num = max(max_num, num)
+            except ValueError:
+                continue
+        
+        next_num = max_num + 1
+        new_filename = f"{base_name}-{next_num:05d}.jpg"
+        new_path = os.path.join(video_dir, new_filename)
+        
+        # Decode base64 image data and save
+        # Remove the data URL prefix if present
+        if ',' in image_data:
+            image_data = image_data.split(',')[1]
+        
+        image_bytes = base64.b64decode(image_data)
+        
+        with open(new_path, 'wb') as f:
+            f.write(image_bytes)
+        
+        # Copy video's modification time to the saved frame
+        video_stat = os.stat(video_path)
+        os.utime(new_path, (video_stat.st_atime, video_stat.st_mtime))
+        
+        print(f"[SAVE FRAME] Saved frame as: {new_filename}")
+        return jsonify({'success': True, 'filename': new_filename, 'path': new_path})
+        
+    except Exception as e:
+        print(f"[SAVE FRAME] Error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
 if __name__ == '__main__':
     # Initial scan
     scan_images()

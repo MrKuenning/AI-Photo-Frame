@@ -9,7 +9,7 @@
         <div class="mb-3 pb-3" style="border-bottom: 1px solid var(--color-border);">
             <label for="thumbnail-size-slider" class="form-label text-secondary"
                 style="font-size: 0.85rem; font-weight: 600;">
-                <i class="bi bi-sliders"></i> Thumbnails: <span id="thumbnail-size-label">1 per row</span>
+                <i class="bi bi-sliders"></i> : <span id="thumbnail-size-label">1 per row</span>
             </label>
             <input type="range" class="form-range" id="thumbnail-size-slider" min="1" max="4" value="1" step="1">
         </div>
@@ -74,6 +74,9 @@
                 </button>
                 <button type="button" class="toggle-btn toggle-metadata-btn" title="Show Metadata">
                     <i class="bi bi-info-circle"></i>
+                </button>
+                <button type="button" class="toggle-btn" id="home-delete-btn" title="Delete Image">
+                    <i class="bi bi-trash"></i>
                 </button>
                 <button type="button" class="toggle-btn toggle-fullscreen-btn" title="Enter Fullscreen">
                     <i class="bi bi-arrows-fullscreen"></i>

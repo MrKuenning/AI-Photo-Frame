@@ -70,6 +70,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 <button class="video-btn video-mute-btn" title="Mute/Unmute">
                     <i class="bi bi-volume-up-fill"></i>
                 </button>
+                <button class="video-btn video-save-frame-btn" title="Save Frame as Image">
+                    <i class="bi bi-camera-fill"></i>
+                </button>
             </div>
         `;
 
@@ -83,6 +86,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const stepFwdBtn = controls.querySelector('.video-stepfwd-btn');
         const lastBtn = controls.querySelector('.video-last-btn');
         const muteBtn = controls.querySelector('.video-mute-btn');
+        const saveFrameBtn = controls.querySelector('.video-save-frame-btn');
         const progressContainer = controls.querySelector('.video-progress-container');
         const progressFill = controls.querySelector('.video-progress-fill');
         const timeDisplay = controls.querySelector('.video-time');
@@ -195,6 +199,62 @@ document.addEventListener('DOMContentLoaded', function () {
             muteBtn.querySelector('i').className = video.muted ? 'bi bi-volume-mute-fill' : 'bi bi-volume-up-fill';
         });
 
+        // Save Frame as Image
+        saveFrameBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            video.pause();
+            showControls();
+
+            // Create canvas and draw current frame
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert to JPEG at 95% quality
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+
+            // Get video filename from src
+            const videoSrc = video.src || video.querySelector('source')?.src || '';
+            const videoFilename = decodeURIComponent(videoSrc.split('/').pop().split('?')[0]);
+
+            if (!videoFilename) {
+                console.error('[VIDEO CONTROLS] Could not determine video filename');
+                alert('Could not determine video filename');
+                return;
+            }
+
+            // Send to backend
+            try {
+                saveFrameBtn.querySelector('i').className = 'bi bi-hourglass-split';
+                const response = await fetch('/save-frame', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_filename: videoFilename,
+                        image_data: dataUrl
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    console.log('[VIDEO CONTROLS] Frame saved as:', result.filename);
+                    saveFrameBtn.querySelector('i').className = 'bi bi-check-lg';
+                    setTimeout(() => {
+                        saveFrameBtn.querySelector('i').className = 'bi bi-camera-fill';
+                    }, 2000);
+                } else {
+                    console.error('[VIDEO CONTROLS] Failed to save frame:', result.error);
+                    alert('Failed to save frame: ' + result.error);
+                    saveFrameBtn.querySelector('i').className = 'bi bi-camera-fill';
+                }
+            } catch (err) {
+                console.error('[VIDEO CONTROLS] Error saving frame:', err);
+                alert('Error saving frame: ' + err.message);
+                saveFrameBtn.querySelector('i').className = 'bi bi-camera-fill';
+            }
+        });
         // Progress bar
         video.addEventListener('timeupdate', () => {
             if (video.duration) {
