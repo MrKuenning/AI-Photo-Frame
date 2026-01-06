@@ -4,6 +4,51 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-01-06]
+
+### Added
+- **Content Scan feature**<br>
+  New toggle in navbar to automatically scan incoming images for NSFW content using NudeNet AI detection. Flagged images are automatically moved to `/NSFW` subfolders.
+
+- **Gallery Scan Content button**<br>
+  New button in gallery navigation to retroactively scan existing images in the current folder for NSFW content. Shows progress bar during scan.
+
+- **Flag NSFW button**<br>
+  New button in gallery preview panel (next to Delete) to manually flag any image as NSFW, moving it to the parent folder's NSFW subfolder.
+
+- **Refresh media button**<br>
+  New refresh icon button in navbar to manually rescan all media files, clearing stale placeholders from moved/deleted files.
+
+- **Configurable toggle defaults**<br>
+  New config options `SAFE_MODE_DEFAULT` and `CONTENT_SCAN_DEFAULT` to set initial toggle states for new users.
+
+- **Configurable nudity threshold**<br>
+  New `NUDITY_THRESHOLD` setting in config.ini (0.0-1.0) to control how sensitive the nudity detection is.
+
+- **Verbose scanner logging**<br>
+  Content scanner now outputs all detected body parts with confidence scores to console for debugging.
+
+- **Configurable NSFW detection labels**<br>
+  New `NSFW_LABELS` setting in config.ini to control exactly which body parts trigger NSFW flagging. All NudeNet labels are documented and configurable.
+
+- **Unflag NSFW button**<br>
+  The Flag button in gallery preview now dynamically shows "Unflag" (green) when viewing files already in NSFW folders, allowing users to undo false positives by moving files back to parent folder.
+
+### Fixed
+- **Safe Mode folder filtering**<br>
+  Fixed path separator handling for nested NSFW folders with mixed forward/backward slashes.
+
+- **Filename metadata parsing**<br>
+  Added support for underscore-based filename format: `date_seedNNNNNN_prompt.jpg`.
+
+- **Content scan file timing**<br>
+  Added 0.5s delay before scanning new files to ensure they're fully written to disk.
+
+- **Toggle sync with server**<br>
+  Content Scan toggle now syncs FROM server on page load, ensuring UI always reflects actual server state after restarts.
+
+---
+
 ## [2026-01-04]
 
 ### Fixed

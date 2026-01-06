@@ -772,6 +772,72 @@ video::-webkit-media-controls-panel {
     display: block !important;
 }
 
+/* ==========================================
+   Actual Size Toggle Mode
+   ========================================== */
+/* Container in actual size mode - enable scrolling for panning */
+.hero-view.actual-size-mode,
+.large-preview-image-container.actual-size-mode {
+    display: block !important;
+    overflow: auto !important;
+    cursor: grab;
+    /* Remove flex centering which constrains scroll area */
+    justify-content: unset !important;
+    align-items: unset !important;
+}
+
+.hero-view.actual-size-mode:active,
+.large-preview-image-container.actual-size-mode:active {
+    cursor: grabbing;
+}
+
+/* Media at actual size - remove size constraints */
+.hero-image.actual-size {
+    max-width: none !important;
+    max-height: none !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: none !important;
+    cursor: grab;
+    /* Center small images, allow scroll for large ones */
+    display: block !important;
+    margin: auto !important;
+}
+
+.hero-image.actual-size:active {
+    cursor: grabbing;
+}
+
+/* Hide scrollbars but keep scrolling functional */
+.actual-size-mode::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.actual-size-mode::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.actual-size-mode::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+.actual-size-mode::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Video controls when moved to body for actual size mode */
+/* Left/right/width are set via inline styles based on hero container position */
+.custom-video-controls.actual-size-fixed {
+    position: fixed !important;
+    bottom: 60px !important;
+    /* Above the navigation footer */
+    z-index: 9998 !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
 /* Toggle Control Buttons */
 .toggle-btn {
     width: 36px;
@@ -847,7 +913,26 @@ video::-webkit-media-controls-panel {
     width: auto !important;
     height: auto !important;
     object-fit: contain !important;
-    cursor: zoom-out !important;
+    cursor: pointer !important;
+}
+
+/* Actual size mode within expanded view */
+.hero-expanded.actual-size-mode {
+    overflow: auto !important;
+    cursor: grab !important;
+}
+
+.hero-expanded .hero-image.actual-size {
+    max-width: none !important;
+    max-height: none !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: none !important;
+    cursor: grab !important;
+}
+
+.hero-expanded .hero-image.actual-size:active {
+    cursor: grabbing !important;
 }
 
 /* Hero video in expanded mode - leave space for controls and nav buttons */
@@ -1955,6 +2040,7 @@ video::-webkit-media-controls-timeline {
         opacity: 1 !important;
         pointer-events: auto !important;
     }
+
 
     body:has(.hero-expanded) .card-footer {
         position: fixed !important;

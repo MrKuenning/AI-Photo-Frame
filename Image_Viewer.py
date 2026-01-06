@@ -8,6 +8,7 @@ from flask_socketio import SocketIO
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from metadata_extractor import extract_embedded_metadata
+import content_scanner
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", ping_timeout=60, ping_interval=25)
@@ -37,7 +38,11 @@ def load_config():
             'swimsuit', 'thick', 'thighs', 'thong', 'topless', 'underwear', 'wet', 'penis',
             'dancing', 'breast', 'dancing', 'bathing', 'swim', 'xxx', 'yoga'
         ],
-        'NSFW_FOLDERS': []
+        'NSFW_FOLDERS': [],
+        'NUDITY_THRESHOLD': 0.5,
+        'NSFW_LABELS': ['FEMALE_BREAST_EXPOSED', 'FEMALE_GENITALIA_EXPOSED', 'MALE_GENITALIA_EXPOSED', 'BUTTOCKS_EXPOSED', 'ANUS_EXPOSED'],
+        'SAFE_MODE_DEFAULT': False,
+        'CONTENT_SCAN_DEFAULT': False
     }
     
     # Try to read config file
@@ -62,6 +67,18 @@ def load_config():
             nsfw_folders_str = config.get('App', 'NSFW_FOLDERS', fallback='')
             if nsfw_folders_str:
                 default_config['NSFW_FOLDERS'] = [folder.strip().lower() for folder in nsfw_folders_str.split(',')]
+            
+            # Parse nudity threshold
+            default_config['NUDITY_THRESHOLD'] = config.getfloat('App', 'NUDITY_THRESHOLD', fallback=0.5)
+            
+            # Parse NSFW labels
+            nsfw_labels_str = config.get('App', 'NSFW_LABELS', fallback='')
+            if nsfw_labels_str:
+                default_config['NSFW_LABELS'] = [label.strip() for label in nsfw_labels_str.split(',')]
+            
+            # Parse toggle defaults
+            default_config['SAFE_MODE_DEFAULT'] = config.getboolean('App', 'SAFE_MODE_DEFAULT', fallback=False)
+            default_config['CONTENT_SCAN_DEFAULT'] = config.getboolean('App', 'CONTENT_SCAN_DEFAULT', fallback=False)
         
         print(f"[OK] Loaded configuration from {config_path}")
     else:
@@ -81,6 +98,8 @@ latest_image = None
 latest_image_timestamp = 0  # Track the timestamp of the latest image
 scan_in_progress = False  # Flag to prevent concurrent scans
 last_scan_time = 0  # Track last scan time for debouncing
+content_scan_enabled = CONFIG.get('CONTENT_SCAN_DEFAULT', False)  # Content Scan toggle state
+content_scan_progress = None  # Current scan progress for gallery scan
 
 # Lock for thread safety
 cache_lock = threading.Lock()
@@ -90,8 +109,10 @@ def get_image_metadata(image_path):
     """Extract metadata from image filename"""
     try:
         filename = os.path.basename(image_path)
-        # Parse filename format: date.time - seed - dimensions - model - prompt.jpg
-        parts = filename.split(' - ', 3)
+        base_name = os.path.splitext(filename)[0]
+        
+        # Format 1: date.time - seed - dimensions - model - prompt.jpg
+        parts = base_name.split(' - ', 3)
         if len(parts) >= 4:
             date_time = parts[0]
             seed = parts[1]
@@ -103,9 +124,6 @@ def get_image_metadata(image_path):
             model = model_prompt_parts[0]
             prompt = model_prompt_parts[1] if len(model_prompt_parts) > 1 else ''
             
-            # Remove file extension from prompt
-            prompt = os.path.splitext(prompt)[0]
-            
             return {
                 'date_time': date_time,
                 'seed': seed,
@@ -113,6 +131,24 @@ def get_image_metadata(image_path):
                 'model': model,
                 'prompt': prompt
             }
+        
+        # Format 2: date_seedNNNNNN_prompt.jpg (underscore-based with 'seed' prefix)
+        # Example: 2026-01-05-23h58m32s_seed754972137_Rotate the camera 45 degrees.jpg
+        import re
+        seed_match = re.match(r'^(.+?)_seed(\d+)_(.+)$', base_name)
+        if seed_match:
+            date_time = seed_match.group(1)
+            seed = seed_match.group(2)
+            prompt = seed_match.group(3)
+            
+            return {
+                'date_time': date_time,
+                'seed': seed,
+                'dimensions': 'Unknown',
+                'model': 'Unknown',
+                'prompt': prompt
+            }
+            
     except Exception as e:
         print(f"Error extracting metadata from {image_path}: {e}")
     
@@ -269,6 +305,20 @@ class ImageChangeHandler(FileSystemEventHandler):
     def on_created(self, event):
         if not event.is_directory and event.src_path.lower().endswith(self.MEDIA_EXTENSIONS):
             print(f"New media detected: {event.src_path}")
+            
+            # Content Scan: Check if enabled and file is NOT already in NSFW folder
+            if content_scan_enabled and not content_scanner.is_in_nsfw_folder(event.src_path):
+                try:
+                    # Get metadata for keyword check
+                    metadata = get_image_metadata(event.src_path)
+                    # Scan and move if NSFW detected
+                    if content_scanner.scan_single_file(event.src_path, metadata):
+                        print(f"[ContentScan] 📁 File moved to NSFW folder")
+                except Exception as e:
+                    print(f"[ContentScan] ❌ Error scanning: {e}")
+            elif content_scan_enabled:
+                print(f"[ContentScan] ⏭️ Skipping file already in NSFW folder")
+            
             # Run scan in background thread to avoid blocking
             threading.Thread(target=scan_images, daemon=True).start()
             # Emit event to all clients
@@ -706,6 +756,95 @@ def delete_image(filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/flag_nsfw/<path:filename>', methods=['POST'])
+def flag_nsfw(filename):
+    """Move a file to NSFW subfolder"""
+    global image_list
+    
+    # Build file path
+    file_path = os.path.join(CONFIG['IMAGE_FOLDER'], filename)
+    
+    if not os.path.exists(file_path):
+        return jsonify({'success': False, 'error': 'File not found'}), 404
+    
+    # Check if already in NSFW folder
+    if content_scanner.is_in_nsfw_folder(file_path):
+        return jsonify({'success': False, 'error': 'File is already in NSFW folder'}), 400
+    
+    try:
+        # Move to NSFW folder
+        new_path = content_scanner.move_to_nsfw_folder(file_path)
+        
+        if new_path:
+            print(f"[FLAG NSFW] Moved file to: {new_path}")
+            
+            # Trigger rescan to update image list
+            threading.Thread(target=scan_images, daemon=True).start()
+            
+            return jsonify({
+                'success': True, 
+                'message': 'File moved to NSFW folder',
+                'new_path': new_path
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Failed to move file'}), 500
+    
+    except Exception as e:
+        print(f"[ERROR] Failed to flag file as NSFW: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/unflag_nsfw/<path:filename>', methods=['POST'])
+def unflag_nsfw(filename):
+    """Move a file from NSFW subfolder back to parent folder"""
+    global image_list
+    
+    # Build file path
+    file_path = os.path.join(CONFIG['IMAGE_FOLDER'], filename)
+    
+    if not os.path.exists(file_path):
+        return jsonify({'success': False, 'error': 'File not found'}), 404
+    
+    # Check if actually in NSFW folder
+    if not content_scanner.is_in_nsfw_folder(file_path):
+        return jsonify({'success': False, 'error': 'File is not in NSFW folder'}), 400
+    
+    try:
+        # Get current folder and parent
+        current_folder = os.path.dirname(file_path)
+        parent_folder = os.path.dirname(current_folder)
+        file_name = os.path.basename(file_path)
+        
+        # Destination path in parent folder
+        dest_path = os.path.join(parent_folder, file_name)
+        
+        # Handle filename collision
+        if os.path.exists(dest_path):
+            base, ext = os.path.splitext(file_name)
+            counter = 1
+            while os.path.exists(dest_path):
+                dest_path = os.path.join(parent_folder, f"{base}_{counter}{ext}")
+                counter += 1
+        
+        # Move file
+        import shutil
+        shutil.move(file_path, dest_path)
+        print(f"[UNFLAG NSFW] Moved file to: {dest_path}")
+        
+        # Trigger rescan to update image list
+        threading.Thread(target=scan_images, daemon=True).start()
+        
+        return jsonify({
+            'success': True, 
+            'message': 'File unflagged and moved to parent folder',
+            'new_path': dest_path
+        })
+    
+    except Exception as e:
+        print(f"[ERROR] Failed to unflag file: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/image_info/<path:filename>')
 def image_info(filename):
     """Get image metadata - combines filename parsing with embedded metadata"""
@@ -842,7 +981,105 @@ def save_frame():
         print(f"[SAVE FRAME] Error: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
+
+# ============================================
+# Content Scan Routes
+# ============================================
+
+@app.route('/toggle_content_scan', methods=['POST'])
+def toggle_content_scan():
+    """Toggle content scanning on/off"""
+    global content_scan_enabled
+    
+    data = request.get_json() or {}
+    enabled = data.get('enabled', not content_scan_enabled)
+    content_scan_enabled = enabled
+    
+    status = "enabled" if enabled else "disabled"
+    print(f"[ContentScan] Content scanning {status}")
+    
+    return jsonify({
+        'success': True,
+        'enabled': content_scan_enabled
+    })
+
+
+@app.route('/get_content_scan_status')
+def get_content_scan_status():
+    """Get current content scan toggle state and default settings"""
+    return jsonify({
+        'enabled': content_scan_enabled,
+        'safe_mode_default': CONFIG.get('SAFE_MODE_DEFAULT', False),
+        'content_scan_default': CONFIG.get('CONTENT_SCAN_DEFAULT', False)
+    })
+
+
+@app.route('/scan_folder', methods=['POST'])
+def scan_folder():
+    """Start scanning a folder for NSFW content"""
+    global content_scan_progress
+    
+    data = request.get_json() or {}
+    subfolder = data.get('subfolder', '')
+    
+    # Build full folder path
+    if subfolder:
+        folder_path = os.path.join(CONFIG['IMAGE_FOLDER'], subfolder)
+    else:
+        folder_path = CONFIG['IMAGE_FOLDER']
+    
+    if not os.path.exists(folder_path):
+        return jsonify({'success': False, 'error': 'Folder not found'})
+    
+    # Set initial progress state (so JS knows scan is starting)
+    content_scan_progress = {
+        'processed': 0,
+        'total': 0,
+        'moved': 0,
+        'current': 'Starting scan...',
+        'complete': False
+    }
+    
+    # Start scan in background thread
+    def run_scan():
+        global content_scan_progress
+        final_progress = {'processed': 0, 'total': 0, 'moved': 0, 'complete': True}
+        for progress in content_scanner.scan_folder_batch(folder_path, batch_size=20, get_metadata_func=get_image_metadata):
+            content_scan_progress = progress
+            final_progress = progress  # Keep track of the last progress
+            socketio.emit('scan_progress', progress)
+        
+        # Rescan image list after moving files
+        scan_images()
+        
+        # Keep final progress with complete flag for the status endpoint
+        final_progress['complete'] = True
+        content_scan_progress = final_progress
+    
+    threading.Thread(target=run_scan, daemon=True).start()
+    
+    return jsonify({
+        'success': True,
+        'message': f'Scan started for folder: {subfolder or "All"}'
+    })
+
+
+@app.route('/scan_status')
+def scan_status():
+    """Get current scan progress"""
+    if content_scan_progress:
+        return jsonify(content_scan_progress)
+    return jsonify({'complete': True, 'processed': 0, 'total': 0, 'moved': 0})
+
+
 if __name__ == '__main__':
+    # Initialize content scanner with config
+    content_scanner.set_config(
+        CONFIG.get('NSFW_KEYWORDS', []),
+        CONFIG.get('NUDITY_THRESHOLD', 0.5),
+        CONFIG.get('NSFW_LABELS', [])
+    )
+    
     # Initial scan
     scan_images()
     

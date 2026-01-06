@@ -25,6 +25,7 @@
     <!-- DISABLED: causes page freeze <script src="{{ url_for('static', filename='js/display_mode_toggle.js') }}"></script> -->
     <script src="{{ url_for('static', filename='js/media_filter.js') }}"></script>
     <script src="{{ url_for('static', filename='js/thumbnail_slider.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/content_scan.js') }}"></script>
     <!-- <script src="{{ url_for('static', filename='js/keyboard_nav.js') }}"></script> -->
 </head>
 
@@ -86,6 +87,19 @@
                             <input class="form-check-input" type="checkbox" id="nsfw-toggle">
                             <label class="form-check-label" for="nsfw-toggle">Safe Mode</label>
                         </div>
+
+                        <!-- Content Scan Toggle -->
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="content-scan-toggle">
+                            <label class="form-check-label" for="content-scan-toggle"
+                                title="Auto-scan new images for NSFW content">Content Scan</label>
+                        </div>
+
+                        <!-- Refresh Button -->
+                        <button id="refresh-media-btn" title="Refresh media list"
+                            class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
 
                         <!-- Fullscreen Button -->
                         <button id="page-fullscreen-toggle" title="Toggle Fullscreen">
@@ -178,6 +192,26 @@
                             if (data.status === 'success') {
                                 window.location.reload();
                             }
+                        });
+                });
+            }
+
+            // Handle refresh media button
+            const refreshMediaBtn = document.getElementById('refresh-media-btn');
+            if (refreshMediaBtn) {
+                refreshMediaBtn.addEventListener('click', function () {
+                    this.disabled = true;
+                    this.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+                    fetch('/refresh')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                window.location.reload();
+                            }
+                        })
+                        .catch(() => {
+                            this.disabled = false;
+                            this.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
                         });
                 });
             }

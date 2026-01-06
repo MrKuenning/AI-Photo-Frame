@@ -1,61 +1,16 @@
 // Hero image click-to-expand functionality
+// NOTE: Click on images/videos is now handled by actual_size_toggle.js for zoom toggle
+// This module now only handles the expand button and escape key
 document.addEventListener('DOMContentLoaded', function () {
     let isExpanded = false;
     let expandedContainer = null;
 
     // Initialize expand functionality
     function init() {
-        // Set up click handlers for hero images
-        setupHeroImageClicks();
-
         // Escape key to exit expanded mode
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape' && isExpanded) {
                 collapseHeroImage();
-            }
-        });
-    }
-
-    // Set up click event listeners on hero images
-    function setupHeroImageClicks() {
-        // Use event delegation since images may be replaced dynamically
-        document.addEventListener('click', function (e) {
-            // Check if clicked element is a hero image (img or video with hero-image class)
-            const heroImage = e.target.closest('.hero-image');
-            if (!heroImage) return;
-
-            // Don't expand if clicking on video controls
-            if (heroImage.tagName === 'VIDEO' && e.target !== heroImage) {
-                return;
-            }
-
-            // For videos, prevent the default play/pause toggle behavior
-            if (heroImage.tagName === 'VIDEO') {
-                e.preventDefault();
-                // Store current play state to restore after expand/collapse
-                const wasPlaying = !heroImage.paused;
-
-                // Toggle expanded state
-                if (isExpanded) {
-                    collapseHeroImage();
-                } else {
-                    expandHeroImage(heroImage);
-                }
-
-                // Restore play state after a brief delay to let the DOM settle
-                if (wasPlaying) {
-                    setTimeout(() => {
-                        heroImage.play().catch(err => console.log('[HERO EXPAND] Could not resume video:', err));
-                    }, 50);
-                }
-                return;
-            }
-
-            // Toggle expanded state (for images)
-            if (isExpanded) {
-                collapseHeroImage();
-            } else {
-                expandHeroImage(heroImage);
             }
         });
     }

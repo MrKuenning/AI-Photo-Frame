@@ -97,6 +97,55 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        // Flag/Unflag NSFW button handler
+        const flagNsfwButton = document.getElementById('flag-nsfw-btn');
+        if (flagNsfwButton) {
+            flagNsfwButton.addEventListener('click', function () {
+                // Get current image info
+                if (currentIndex < 0 || currentIndex >= currentImages.length) return;
+
+                const container = currentImages[currentIndex];
+                const filename = container.dataset.filename;
+                const subfolder = container.dataset.subfolder;
+                const fullPath = subfolder + '/' + filename;
+
+                // Check if file is in NSFW folder
+                const isInNsfw = subfolder.toLowerCase().includes('/nsfw') ||
+                    subfolder.toLowerCase().endsWith('nsfw') ||
+                    subfolder.toLowerCase() === 'nsfw';
+
+                // Choose endpoint based on current state
+                const endpoint = isInNsfw ? 'unflag_nsfw' : 'flag_nsfw';
+                const action = isInNsfw ? 'unflagged' : 'flagged';
+
+                // Send request (no confirmation for speed)
+                fetch(`/${endpoint}/${encodeURIComponent(fullPath)}`, {
+                    method: 'POST'
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Remove the item from the grid (it's been moved)
+                            container.remove();
+
+                            // Update currentImages array
+                            updateCurrentImages();
+
+                            // Close the preview
+                            closeImagePreview();
+
+                            console.log(`File ${action} successfully`);
+                        } else {
+                            alert(`Error ${action.slice(0, -2)}ing file: ` + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`Error ${action.slice(0, -2)}ing file:`, error);
+                        alert(`Error ${action.slice(0, -2)}ing file. Please try again.`);
+                    });
+            });
+        }
+
         // Keyboard navigation
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape' && largePreviewContainer && largePreviewContainer.classList.contains('active')) {
@@ -107,6 +156,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 showNextImage();
             }
         });
+    }
+
+    // Update flag button text based on current image's folder
+    // (Defined at module scope so it's accessible from showImagePreview and navigateToImage)
+    function updateFlagButton() {
+        const flagBtn = document.getElementById('flag-nsfw-btn');
+        if (!flagBtn) return;
+        if (currentIndex < 0 || currentIndex >= currentImages.length) return;
+
+        const container = currentImages[currentIndex];
+        const subfolder = container.dataset.subfolder;
+        const isInNsfw = subfolder.toLowerCase().includes('/nsfw') ||
+            subfolder.toLowerCase().endsWith('nsfw') ||
+            subfolder.toLowerCase() === 'nsfw';
+
+        if (isInNsfw) {
+            flagBtn.innerHTML = '<i class="bi bi-check-circle"></i> Unflag';
+            flagBtn.classList.remove('btn-outline-warning');
+            flagBtn.classList.add('btn-outline-success');
+        } else {
+            flagBtn.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Flag';
+            flagBtn.classList.remove('btn-outline-success');
+            flagBtn.classList.add('btn-outline-warning');
+        }
     }
 
     // Handle search input - now submits the form for server-side search
@@ -230,6 +303,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Set current index for navigation
         currentIndex = index;
+
+        // Update flag button for current image
+        updateFlagButton();
 
         // Get the preview image container directly
         const previewImageContainer = document.querySelector('.large-preview-image-container');
@@ -417,6 +493,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Update navigation buttons
         updateNavButtons();
+
+        // Update flag button for current image
+        updateFlagButton();
     }
 
     // Update navigation buttons state
