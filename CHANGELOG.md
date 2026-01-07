@@ -7,6 +7,15 @@ All notable changes to the AI Photo Frame application will be documented in this
 ## [2026-01-06]
 
 ### Added
+- **Authentication system**<br>
+  Optional passphrase-based login with user/admin roles. Configure `AUTH_ENABLED`, `USER_PASSPHRASE`, and `ADMIN_PASSPHRASE` in config.ini. Page is blurred until login when enabled.
+
+- **Safe Mode passphrase lock**<br>
+  Enable `SAFEMODE_LOCK_ENABLED` with a `SAFEMODE_PASSPHRASE` to prevent disabling Safe Mode without the passphrase. Once unlocked, toggle works freely for the session. Admins bypass the lock.
+
+- **Role-based delete permissions**<br>
+  When `ADMIN_PASSPHRASE` is set, only admin users can delete files or flag/unflag NSFW content. User role sees these buttons hidden.
+
 - **Content Scan feature**<br>
   New toggle in navbar to automatically scan incoming images for NSFW content using NudeNet AI detection. Flagged images are automatically moved to `/NSFW` subfolders.
 

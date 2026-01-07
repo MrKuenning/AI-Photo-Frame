@@ -23,13 +23,15 @@ It monitors a folder for new images and videos and updates image and video files
 
 ### 🔍 Smart Features
 - **Real-time Monitoring** - Auto-detects new images via file system watcher
-- **NSFW Filtering** - Keyword and folder-based safe mode
+- **AI Content Scan** - Automatic NSFW detection using NudeNet AI (configurable sensitivity)
+- **NSFW Filtering** - Keyword and folder-based safe mode with passphrase lock option
+- **Authentication** - Optional passphrase login with user/admin roles
 - **Media Type Filters** - Toggle between photos, videos, or all
 - **Recursive Folder Navigation** - Browse nested folder structures
-- **Metadata Extraction** - Displays AI generation parameters from filenames
+- **Metadata Extraction** - Displays AI generation parameters from filenames and embedded metadata
 - **Search Functionality** - Search by filename, prompt, or model
 - **Infinite Scroll** - Smooth loading for large libraries
-- **Delete Capability** - Remove unwanted images directly from the interface
+- **Delete & Flag NSFW** - Remove or flag unwanted images directly from the interface
 
 ### ⌨️ Keyboard Controls
 - **Arrow Keys** - Navigate between images
@@ -72,6 +74,8 @@ pip install -r requirements.txt
 - python-magic-bin 0.4.14
 - flask-paginate 2023.10.8
 - flask-socketio 5.3.6
+- itsdangerous 2.1.0+ (for session management)
+- NudeNet 3.0.0+ (optional, for AI content scanning)
 
 ### 3. Configure
 Edit `config.ini` to set your image folder path:
@@ -130,6 +134,29 @@ GALLERY_THUMBNAIL_SIZE = 200x200
 # Preview size for gallery hero view
 GALLERY_PREVIEW_SIZE = 800x800
 ```
+
+### Authentication (Optional)
+```ini
+# Enable login requirement
+AUTH_ENABLED = false
+
+# User passphrase - can access UI but restricted from delete/flag if admin pass is set
+USER_PASSPHRASE = 
+
+# Admin passphrase - full access including delete/flag
+ADMIN_PASSPHRASE = 
+
+# Require passphrase to disable Safe Mode
+SAFEMODE_LOCK_ENABLED = false
+SAFEMODE_PASSPHRASE = 
+```
+
+**Permission Matrix:**
+| Role | Delete/Flag | Safe Mode Toggle |
+|------|-------------|-----------------|
+| No Auth | ✅ | ✅ |
+| User (with admin pass set) | ❌ | 🔐 Needs passphrase |
+| Admin | ✅ | ✅ |
 
 ## 📂 Project Structure
 
