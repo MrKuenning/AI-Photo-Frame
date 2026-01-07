@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', function () {
     loadingIndicator.innerHTML = '<div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div>';
 
     // State variables
-    let page = 1;
     let loading = false;
     let allImagesLoaded = false;
 
@@ -36,7 +35,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Load more images
     function loadMoreImages() {
         loading = true;
-        page++;
+
+        // Calculate offset based on how many images are already in the grid
+        const currentImageCount = document.querySelectorAll('.image-container').length;
 
         // Show loading indicator
         imageGrid.appendChild(loadingIndicator);
@@ -47,8 +48,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const searchQuery = urlParams.get('search') || '';
         const mediaType = urlParams.get('media_type') || 'all';
 
-        // Build the query string
-        let queryString = `page=${page}`;
+        // Build the query string with explicit offset
+        let queryString = `offset=${currentImageCount}`;
         if (selectedSubfolder) {
             queryString += `&subfolder=${encodeURIComponent(selectedSubfolder)}`;
         }

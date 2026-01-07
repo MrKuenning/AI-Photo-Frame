@@ -4,7 +4,45 @@ document.addEventListener('DOMContentLoaded', function () {
     const nsfwToggle = document.getElementById('nsfw-toggle');
 
     if (nsfwToggle) {
-        // Check localStorage for saved preference
+        // First check auth status to see if safemode lock is enabled
+        fetch('/auth_status')
+            .then(response => response.json())
+            .then(authData => {
+                const safemodeLocked = authData.safemode_lock_enabled && !authData.can_toggle_safemode;
+
+                if (safemodeLocked) {
+                    // Force safemode ON when locked, ignore localStorage
+                    console.log('[NSFW Filter] Safemode is locked, forcing ON');
+                    nsfwToggle.checked = true;
+                    applyNsfwFilter(true);
+                    localStorage.setItem('safeMode', 'true');
+                    return;
+                }
+
+                // Not locked - use normal localStorage logic
+                initSafeModeFromStorage();
+            })
+            .catch(() => {
+                // If auth check fails, fall back to localStorage
+                initSafeModeFromStorage();
+            });
+
+        // Add event listener for toggle changes
+        nsfwToggle.addEventListener('change', function () {
+            const isChecked = this.checked;
+
+            // Save preference to localStorage
+            localStorage.setItem('safeMode', isChecked);
+
+            // Apply the filter
+            applyNsfwFilter(isChecked);
+
+            // Reload the page to apply the filter to all images
+            window.location.reload();
+        });
+    }
+
+    function initSafeModeFromStorage() {
         const savedSafeMode = localStorage.getItem('safeMode');
 
         if (savedSafeMode !== null) {
@@ -28,20 +66,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     applyNsfwFilter(false);
                 });
         }
-
-        // Add event listener for toggle changes
-        nsfwToggle.addEventListener('change', function () {
-            const isChecked = this.checked;
-
-            // Save preference to localStorage
-            localStorage.setItem('safeMode', isChecked);
-
-            // Apply the filter
-            applyNsfwFilter(isChecked);
-
-            // Reload the page to apply the filter to all images
-            window.location.reload();
-        });
     }
 });
 

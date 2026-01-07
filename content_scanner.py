@@ -81,21 +81,118 @@ def check_nsfw_keywords(metadata: Dict[str, Any]) -> bool:
     return False
 
 
-def check_nudity_detection(file_path: str) -> bool:
+def check_video_nudity(file_path: str) -> bool:
     """
-    Use NudeNet to check for nudity in an image.
+    Check video for nudity by extracting and scanning the last frame.
     
     Args:
-        file_path: Path to image file
+        file_path: Path to video file
+        
+    Returns:
+        True if nudity detected, False otherwise
+    """
+    import subprocess
+    import tempfile
+    
+    filename = os.path.basename(file_path)
+    print(f"[ContentScanner] 🎬 Scanning video (last frame): {filename}")
+    
+    # Create temp file for extracted frame
+    temp_dir = tempfile.gettempdir()
+    temp_frame = os.path.join(temp_dir, f"content_scan_{os.getpid()}.jpg")
+    
+    try:
+        # Use ffmpeg to extract last frame
+        # sseof seeks to end of file, -1 means 1 second before end
+        cmd = [
+            'ffmpeg', '-y',
+            '-sseof', '-1',  # Seek to 1 second before end
+            '-i', file_path,
+            '-frames:v', '1',
+            '-q:v', '2',
+            temp_frame
+        ]
+        
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            timeout=30
+        )
+        
+        if result.returncode != 0 or not os.path.exists(temp_frame):
+            stderr = result.stderr.decode('utf-8', errors='ignore')[:200]
+            print(f"[ContentScanner] ⚠️ Failed to extract frame from video")
+            if stderr:
+                print(f"    └─ ffmpeg error: {stderr}")
+            return False
+        
+        print(f"[ContentScanner] ✅ Frame extracted successfully")
+        
+        # Scan the extracted frame
+        detector = get_detector()
+        if detector is None:
+            return False
+        
+        results = detector.detect(temp_frame)
+        
+        # Log all detections found
+        if results:
+            for detection in results:
+                label = detection.get('class', '')
+                confidence = detection.get('score', 0)
+                print(f"    └─ {label}: {confidence:.1%}")
+        
+        # Check for NSFW content
+        for detection in results:
+            label = detection.get('class', '')
+            confidence = detection.get('score', 0)
+            
+            if label in NSFW_LABELS and confidence >= NUDITY_THRESHOLD:
+                print(f"[ContentScanner] 🔞 NSFW FLAGGED: {label} ({confidence:.1%}) >= threshold ({NUDITY_THRESHOLD:.0%})")
+                return True
+        
+        return False
+        
+    except subprocess.TimeoutExpired:
+        print(f"[ContentScanner] ⚠️ Video frame extraction timed out")
+        return False
+    except FileNotFoundError:
+        print(f"[ContentScanner] ⚠️ ffmpeg not found - video scanning disabled")
+        return False
+    except Exception as e:
+        print(f"[ContentScanner] ❌ Error scanning video: {e}")
+        return False
+    finally:
+        # Clean up temp file
+        if os.path.exists(temp_frame):
+            try:
+                os.remove(temp_frame)
+            except:
+                pass
+
+
+def check_nudity_detection(file_path: str) -> bool:
+    """
+    Use NudeNet to check for nudity in an image or video.
+    For videos, extracts and scans the last frame.
+    
+    Args:
+        file_path: Path to image or video file
         
     Returns:
         True if nudity detected above threshold, False otherwise
     """
-    # Only check image files (not videos)
     ext = os.path.splitext(file_path)[1].lower()
     image_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
+    video_extensions = ('.mp4', '.webm', '.mov', '.avi', '.mkv')
+    
+    # Handle video files - extract last frame
+    if ext in video_extensions:
+        return check_video_nudity(file_path)
+    
+    # Skip unsupported files
     if ext not in image_extensions:
-        print(f"[ContentScanner] ⏭️ Skipping non-image: {ext}")
+        print(f"[ContentScanner] ⏭️ Skipping unsupported: {ext}")
         return False
     
     detector = get_detector()
@@ -226,8 +323,10 @@ def scan_folder_batch(
     Yields:
         Progress dict: {'processed': int, 'total': int, 'moved': int, 'current': str}
     """
-    # Collect all image files (not in NSFW folders)
+    # Collect all media files (not in NSFW folders)
     image_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
+    video_extensions = ('.mp4', '.webm', '.mov', '.avi', '.mkv')
+    media_extensions = image_extensions + video_extensions
     files_to_scan = []
     
     for root, dirs, files in os.walk(folder_path):
@@ -236,7 +335,7 @@ def scan_folder_batch(
             continue
             
         for filename in files:
-            if filename.lower().endswith(image_extensions):
+            if filename.lower().endswith(media_extensions):
                 files_to_scan.append(os.path.join(root, filename))
     
     total = len(files_to_scan)

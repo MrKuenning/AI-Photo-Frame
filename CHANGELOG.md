@@ -34,6 +34,9 @@ All notable changes to the AI Photo Frame application will be documented in this
 - **Unflag NSFW button**<br>
   The Flag button in gallery preview now dynamically shows "Unflag" (green) when viewing files already in NSFW folders, allowing users to undo false positives by moving files back to parent folder.
 
+- **Video NSFW scanning**<br>
+  Content scanner now supports video files (.mp4, .webm, .mov, .avi, .mkv) by extracting and scanning the last frame using ffmpeg. Ideal for AI-generated videos that reveal content at the end.
+
 ### Fixed
 - **Safe Mode folder filtering**<br>
   Fixed path separator handling for nested NSFW folders with mixed forward/backward slashes.
@@ -46,6 +49,16 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 - **Toggle sync with server**<br>
   Content Scan toggle now syncs FROM server on page load, ensuring UI always reflects actual server state after restarts.
+
+- **Duplicate images in gallery**<br>
+  Fixed infinite scroll loading duplicate images. Switched from page-based to offset-based loading so initial 50 images batch and subsequent 20-image batches don't overlap.
+
+- **Gallery preview stays open on delete/flag**<br>
+  When deleting or flagging an image in gallery preview, the preview now shows the next image instead of closing.
+
+### Changed
+- **Improved ffmpeg error logging**<br>
+  Video frame extraction now logs ffmpeg stderr output when extraction fails, making it easier to diagnose video scanning issues.
 
 ---
 

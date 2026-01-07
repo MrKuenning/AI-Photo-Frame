@@ -81,10 +81,17 @@ document.addEventListener('DOMContentLoaded', function () {
                             // Update currentImages array
                             updateCurrentImages();
 
-                            // Close the preview
-                            closeImagePreview();
+                            // Show next image or close if none remain
+                            if (currentImages.length === 0) {
+                                closeImagePreview();
+                            } else {
+                                // Adjust index if we were at the end
+                                if (currentIndex >= currentImages.length) {
+                                    currentIndex = currentImages.length - 1;
+                                }
+                                navigateToImage(currentIndex);
+                            }
 
-                            // Show success message (optional)
                             console.log('File deleted successfully');
                         } else {
                             alert('Error deleting file: ' + (data.error || 'Unknown error'));
@@ -131,8 +138,16 @@ document.addEventListener('DOMContentLoaded', function () {
                             // Update currentImages array
                             updateCurrentImages();
 
-                            // Close the preview
-                            closeImagePreview();
+                            // Show next image or close if none remain
+                            if (currentImages.length === 0) {
+                                closeImagePreview();
+                            } else {
+                                // Adjust index if we were at the end
+                                if (currentIndex >= currentImages.length) {
+                                    currentIndex = currentImages.length - 1;
+                                }
+                                navigateToImage(currentIndex);
+                            }
 
                             console.log(`File ${action} successfully`);
                         } else {

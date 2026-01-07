@@ -1,12 +1,14 @@
 import os
 import threading
 import configparser
+import time
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, make_response, redirect, url_for
 from flask_paginate import Pagination, get_page_parameter
 from flask_socketio import SocketIO
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from metadata_extractor import extract_embedded_metadata
 import content_scanner
 
@@ -42,7 +44,12 @@ def load_config():
         'NUDITY_THRESHOLD': 0.5,
         'NSFW_LABELS': ['FEMALE_BREAST_EXPOSED', 'FEMALE_GENITALIA_EXPOSED', 'MALE_GENITALIA_EXPOSED', 'BUTTOCKS_EXPOSED', 'ANUS_EXPOSED'],
         'SAFE_MODE_DEFAULT': False,
-        'CONTENT_SCAN_DEFAULT': False
+        'CONTENT_SCAN_DEFAULT': False,
+        'AUTH_ENABLED': False,
+        'USER_PASSPHRASE': '',
+        'ADMIN_PASSPHRASE': '',
+        'SAFEMODE_LOCK_ENABLED': False,
+        'SAFEMODE_PASSPHRASE': ''
     }
     
     # Try to read config file
@@ -79,6 +86,13 @@ def load_config():
             # Parse toggle defaults
             default_config['SAFE_MODE_DEFAULT'] = config.getboolean('App', 'SAFE_MODE_DEFAULT', fallback=False)
             default_config['CONTENT_SCAN_DEFAULT'] = config.getboolean('App', 'CONTENT_SCAN_DEFAULT', fallback=False)
+            
+            # Parse authentication settings
+            default_config['AUTH_ENABLED'] = config.getboolean('App', 'AUTH_ENABLED', fallback=False)
+            default_config['USER_PASSPHRASE'] = config.get('App', 'USER_PASSPHRASE', fallback='').strip()
+            default_config['ADMIN_PASSPHRASE'] = config.get('App', 'ADMIN_PASSPHRASE', fallback='').strip()
+            default_config['SAFEMODE_LOCK_ENABLED'] = config.getboolean('App', 'SAFEMODE_LOCK_ENABLED', fallback=False)
+            default_config['SAFEMODE_PASSPHRASE'] = config.get('App', 'SAFEMODE_PASSPHRASE', fallback='').strip()
         
         print(f"[OK] Loaded configuration from {config_path}")
     else:
@@ -103,6 +117,80 @@ content_scan_progress = None  # Current scan progress for gallery scan
 
 # Lock for thread safety
 cache_lock = threading.Lock()
+
+# Make CONFIG available in all templates
+@app.context_processor
+def inject_config():
+    return {'config': CONFIG}
+
+# Session management
+SECRET_KEY = os.environ.get('SECRET_KEY', 'photo-frame-secret-key-change-me')
+session_serializer = URLSafeTimedSerializer(SECRET_KEY)
+
+def create_session(role: str, remember: bool = False) -> str:
+    """Create a signed session cookie value"""
+    # Session lasts 30 days if remember, otherwise until browser closes (handled by cookie settings)
+    max_age = 30 * 24 * 60 * 60 if remember else None  # 30 days in seconds
+    session_data = {
+        'role': role,  # 'user', 'admin', or None
+        'safemode_unlocked': False,
+        'created': time.time()
+    }
+    return session_serializer.dumps(session_data), max_age
+
+def get_session() -> dict:
+    """Get and verify session from cookie"""
+    session_cookie = request.cookies.get('auth_session')
+    if not session_cookie:
+        return {'role': None, 'safemode_unlocked': False}
+    
+    try:
+        # Max age 30 days
+        session_data = session_serializer.loads(session_cookie, max_age=30 * 24 * 60 * 60)
+        return session_data
+    except (BadSignature, SignatureExpired):
+        return {'role': None, 'safemode_unlocked': False}
+
+def is_auth_required() -> bool:
+    """Check if authentication is required"""
+    return CONFIG.get('AUTH_ENABLED', False) and (
+        CONFIG.get('USER_PASSPHRASE', '') or CONFIG.get('ADMIN_PASSPHRASE', '')
+    )
+
+def is_authenticated() -> bool:
+    """Check if user is authenticated (or auth not required)"""
+    if not is_auth_required():
+        return True
+    session = get_session()
+    return session.get('role') in ('user', 'admin')
+
+def is_admin() -> bool:
+    """Check if user is logged in as admin"""
+    session = get_session()
+    return session.get('role') == 'admin'
+
+def can_delete() -> bool:
+    """Check if user can delete/flag files"""
+    # If no admin passphrase set, everyone can delete
+    if not CONFIG.get('ADMIN_PASSPHRASE', ''):
+        return True
+    # If admin passphrase set, only admins can delete
+    return is_admin()
+
+def can_toggle_safemode() -> bool:
+    """Check if user can freely toggle safe mode"""
+    # Admins can always toggle
+    if is_admin():
+        return True
+    # If safemode lock not enabled, anyone can toggle
+    if not CONFIG.get('SAFEMODE_LOCK_ENABLED', False):
+        return True
+    # If no safemode passphrase set, anyone can toggle
+    if not CONFIG.get('SAFEMODE_PASSPHRASE', ''):
+        return True
+    # Check if user has unlocked safemode this session
+    session = get_session()
+    return session.get('safemode_unlocked', False)
 
 
 def get_image_metadata(image_path):
@@ -578,10 +666,9 @@ def gallery():
 @app.route('/load_more_images')
 def load_more_images():
     """API endpoint for loading more images (infinite scroll)"""
-    # Get pagination parameters
-    page = request.args.get('page', type=int, default=1)
+    # Get pagination parameters - use explicit offset instead of page to avoid mismatches
+    offset = request.args.get('offset', type=int, default=0)
     batch_size = 20  # Number of images to load per batch
-    offset = (page - 1) * batch_size
     
     # Get selected subfolder (if any)
     selected_subfolder = request.args.get('subfolder', '')
@@ -724,6 +811,10 @@ def delete_image(filename):
     """Delete an image or video file"""
     global image_list, latest_image, latest_image_timestamp
     
+    # Check permissions
+    if not can_delete():
+        return jsonify({'success': False, 'error': 'Permission denied. Admin access required.'}), 403
+    
     try:
         # Construct the full file path
         file_path = os.path.join(CONFIG['IMAGE_FOLDER'], filename)
@@ -760,6 +851,10 @@ def delete_image(filename):
 def flag_nsfw(filename):
     """Move a file to NSFW subfolder"""
     global image_list
+    
+    # Check permissions
+    if not can_delete():
+        return jsonify({'success': False, 'error': 'Permission denied. Admin access required.'}), 403
     
     # Build file path
     file_path = os.path.join(CONFIG['IMAGE_FOLDER'], filename)
@@ -798,6 +893,10 @@ def flag_nsfw(filename):
 def unflag_nsfw(filename):
     """Move a file from NSFW subfolder back to parent folder"""
     global image_list
+    
+    # Check permissions
+    if not can_delete():
+        return jsonify({'success': False, 'error': 'Permission denied. Admin access required.'}), 403
     
     # Build file path
     file_path = os.path.join(CONFIG['IMAGE_FOLDER'], filename)
@@ -980,6 +1079,87 @@ def save_frame():
     except Exception as e:
         print(f"[SAVE FRAME] Error: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
+
+
+# ============================================
+# Authentication Routes
+# ============================================
+
+@app.route('/login', methods=['POST'])
+def login():
+    """Validate passphrase and create session"""
+    data = request.get_json() or {}
+    passphrase = data.get('passphrase', '').strip()
+    remember = data.get('remember', False)
+    
+    # Check if passphrase matches admin or user
+    admin_pass = CONFIG.get('ADMIN_PASSPHRASE', '')
+    user_pass = CONFIG.get('USER_PASSPHRASE', '')
+    
+    role = None
+    if admin_pass and passphrase == admin_pass:
+        role = 'admin'
+    elif user_pass and passphrase == user_pass:
+        role = 'user'
+    elif not admin_pass and not user_pass:
+        # No passphrases configured, deny login
+        return jsonify({'success': False, 'error': 'No passphrases configured'})
+    
+    if role:
+        session_token, max_age = create_session(role, remember)
+        response = make_response(jsonify({'success': True, 'role': role}))
+        # Set cookie - if remember, set max_age; otherwise session cookie
+        if max_age:
+            response.set_cookie('auth_session', session_token, max_age=max_age, httponly=True, samesite='Lax')
+        else:
+            response.set_cookie('auth_session', session_token, httponly=True, samesite='Lax')
+        return response
+    else:
+        return jsonify({'success': False, 'error': 'Invalid passphrase'})
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    """Clear session cookie"""
+    response = make_response(jsonify({'success': True}))
+    response.delete_cookie('auth_session')
+    return response
+
+@app.route('/auth_status')
+def auth_status():
+    """Get current authentication status and permissions"""
+    session = get_session()
+    return jsonify({
+        'auth_required': is_auth_required(),
+        'authenticated': is_authenticated(),
+        'role': session.get('role'),
+        'can_delete': can_delete(),
+        'can_toggle_safemode': can_toggle_safemode(),
+        'safemode_unlocked': session.get('safemode_unlocked', False),
+        'safemode_lock_enabled': CONFIG.get('SAFEMODE_LOCK_ENABLED', False) and bool(CONFIG.get('SAFEMODE_PASSPHRASE', ''))
+    })
+
+@app.route('/unlock_safemode', methods=['POST'])
+def unlock_safemode():
+    """Unlock safemode toggle for this session"""
+    data = request.get_json() or {}
+    passphrase = data.get('passphrase', '').strip()
+    
+    safemode_pass = CONFIG.get('SAFEMODE_PASSPHRASE', '')
+    
+    if not safemode_pass:
+        return jsonify({'success': False, 'error': 'No safemode passphrase configured'})
+    
+    if passphrase == safemode_pass:
+        # Update session to mark safemode as unlocked
+        session = get_session()
+        session['safemode_unlocked'] = True
+        session_token = session_serializer.dumps(session)
+        
+        response = make_response(jsonify({'success': True}))
+        response.set_cookie('auth_session', session_token, httponly=True, samesite='Lax')
+        return response
+    else:
+        return jsonify({'success': False, 'error': 'Invalid passphrase'})
 
 
 # ============================================

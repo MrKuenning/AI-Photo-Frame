@@ -26,11 +26,85 @@
     <script src="{{ url_for('static', filename='js/media_filter.js') }}"></script>
     <script src="{{ url_for('static', filename='js/thumbnail_slider.js') }}"></script>
     <script src="{{ url_for('static', filename='js/content_scan.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
     <!-- <script src="{{ url_for('static', filename='js/keyboard_nav.js') }}"></script> -->
 </head>
 
 <body>
-    <div class="container">
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal" tabindex="-1" style="display: none;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content"
+                style="background: var(--color-bg-tertiary); border: 1px solid var(--color-border);">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title"><i class="bi bi-lock-fill me-2"></i>Login Required</h5>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="handleLogin(event); return false;">
+                        <div class="mb-3">
+                            <label for="login-passphrase" class="form-label">Passphrase</label>
+                            <input type="password" class="form-control" id="login-passphrase"
+                                placeholder="Enter passphrase" autocomplete="off" required>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="login-remember">
+                            <label class="form-check-label" for="login-remember">Remember me for 30 days</label>
+                        </div>
+                        <div id="login-error" class="alert alert-danger" style="display: none;"></div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Safemode Unlock Modal -->
+    <div id="safemode-unlock-modal" class="modal" tabindex="-1" style="display: none;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content"
+                style="background: var(--color-bg-tertiary); border: 1px solid var(--color-border);">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title"><i class="bi bi-shield-lock-fill me-2"></i>Unlock Safe Mode</h5>
+                    <button type="button" class="btn-close btn-close-white"
+                        onclick="hideSafemodeUnlockModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Enter the safemode passphrase to disable Safe Mode.</p>
+                    <form onsubmit="handleSafemodeUnlock(event); return false;">
+                        <div class="mb-3">
+                            <input type="password" class="form-control" id="safemode-passphrase"
+                                placeholder="Safemode passphrase" autocomplete="off" required>
+                        </div>
+                        <div id="safemode-unlock-error" class="alert alert-danger" style="display: none;"></div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-secondary flex-grow-1"
+                                onclick="hideSafemodeUnlockModal()">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn btn-warning flex-grow-1">
+                                <i class="bi bi-unlock-fill me-2"></i>Unlock
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal backdrop -->
+    <div id="modal-backdrop" class="modal-backdrop" style="display: none;"></div>
+
+    <!-- Auth overlay - blocks page content until authenticated (shown by default if auth enabled) -->
+    {% if config.AUTH_ENABLED %}
+    <div id="auth-overlay" class="auth-overlay" style="display: block;"></div>
+    {% else %}
+    <div id="auth-overlay" class="auth-overlay" style="display: none;"></div>
+    {% endif %}
+
+    <div class="container" id="main-content" {% if config.AUTH_ENABLED
+        %}style="filter: blur(20px); pointer-events: none;" {% endif %}>
         <nav class="navbar navbar-expand-md navbar-dark rounded">
             <div class="container-fluid">
                 <a class="navbar-brand" href="{{ url_for('index') }}">✨ AI Photo Frame</a>

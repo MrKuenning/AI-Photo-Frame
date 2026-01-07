@@ -5,4 +5,5 @@ python-magic==0.4.27
 python-magic-bin==0.4.14
 flask-paginate==2023.10.8
 flask-socketio==5.3.6
+itsdangerous>=2.1.0
 nudenet>=3.0.0

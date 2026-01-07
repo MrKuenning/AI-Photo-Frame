@@ -2115,3 +2115,27 @@ video::-webkit-media-controls-timeline {
         height: 32px;
     }
 }
+
+/* ==========================================
+   Auth Overlay - Blocks page until login
+   ========================================== */
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1040;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+/* Login modal should be above the overlay */
+#login-modal {
+    z-index: 1050;
+}
+
+#login-modal .modal-dialog {
+    z-index: 1051;
+}
