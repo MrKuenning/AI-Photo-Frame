@@ -53,7 +53,7 @@ def extract_embedded_metadata(file_path):
 
 
 def _extract_from_jpeg(file_path):
-    """Extract metadata from JPEG files using EXIF UserComment or ImageDescription"""
+    """Extract metadata from JPEG files using EXIF UserComment, ImageDescription, or Comment"""
     result = {'prompt': None, 'negative_prompt': None, 'seed': None, 'model': None, 'dimensions': None}
     
     try:
@@ -61,7 +61,25 @@ def _extract_from_jpeg(file_path):
             # Get dimensions
             result['dimensions'] = f"{img.width}x{img.height}"
             
-            # Try EXIF data
+            # Try img.info for Comment (some apps write here)
+            if hasattr(img, 'info') and 'comment' in img.info:
+                comment_value = img.info['comment']
+                if isinstance(comment_value, bytes):
+                    comment_value = comment_value.decode('utf-8', errors='replace')
+                if comment_value:
+                    # Try parsing as JSON first (WanGP style)
+                    try:
+                        json_data = json.loads(comment_value)
+                        result = _parse_json_metadata(json_data, result)
+                        if result.get('prompt'):
+                            return result  # Found good data, return early
+                    except json.JSONDecodeError:
+                        # Not JSON, try A1111 format
+                        result = _parse_a1111_metadata(comment_value, result)
+                        if result.get('prompt'):
+                            return result
+            
+            # Try EXIF data (main EXIF tags including UserComment from IFD)
             exif_data = img._getexif()
             if exif_data:
                 for tag_id, value in exif_data.items():
@@ -71,12 +89,47 @@ def _extract_from_jpeg(file_path):
                         if isinstance(value, bytes):
                             value = _decode_user_comment(value)
                         if isinstance(value, str) and value:
-                            result = _parse_a1111_metadata(value, result)
+                            # Try JSON first (WanGP style)
+                            try:
+                                json_data = json.loads(value)
+                                result = _parse_json_metadata(json_data, result)
+                                if result.get('prompt'):
+                                    return result
+                            except json.JSONDecodeError:
+                                result = _parse_a1111_metadata(value, result)
+                                if result.get('prompt'):
+                                    return result
                     elif tag == 'ImageDescription':
                         if isinstance(value, bytes):
                             value = value.decode('utf-8', errors='replace')
                         if isinstance(value, str) and value:
-                            result = _parse_a1111_metadata(value, result)
+                            # Try JSON first
+                            try:
+                                json_data = json.loads(value)
+                                result = _parse_json_metadata(json_data, result)
+                                if result.get('prompt'):
+                                    return result
+                            except json.JSONDecodeError:
+                                result = _parse_a1111_metadata(value, result)
+                                if result.get('prompt'):
+                                    return result
+            
+            # Also check standard IFD0 tags via getexif()
+            exif_ifd = img.getexif()
+            if exif_ifd:
+                # 0x010E = ImageDescription, 0x9286 = UserComment (often in EXIF IFD)
+                # Also check for 0x9C9C (XPComment on Windows)
+                for tag_id in [0x010E, 0x9286, 0x9C9C]:
+                    if tag_id in exif_ifd:
+                        value = exif_ifd[tag_id]
+                        if isinstance(value, bytes):
+                            value = _decode_user_comment(value)
+                        if isinstance(value, str) and value and not result.get('prompt'):
+                            try:
+                                json_data = json.loads(value)
+                                result = _parse_json_metadata(json_data, result)
+                            except json.JSONDecodeError:
+                                result = _parse_a1111_metadata(value, result)
     except Exception as e:
         print(f"[METADATA] JPEG extraction error: {e}")
     
@@ -183,14 +236,40 @@ def _extract_from_webp(file_path):
             # Get dimensions
             result['dimensions'] = f"{img.width}x{img.height}"
             
+            # Check img.info for comment/metadata
+            if hasattr(img, 'info'):
+                for key in ['comment', 'Comment', 'parameters']:
+                    if key in img.info:
+                        value = img.info[key]
+                        if isinstance(value, bytes):
+                            value = value.decode('utf-8', errors='replace')
+                        if value:
+                            try:
+                                json_data = json.loads(value)
+                                result = _parse_json_metadata(json_data, result)
+                                if result.get('prompt'):
+                                    return result
+                            except json.JSONDecodeError:
+                                result = _parse_a1111_metadata(value, result)
+                                if result.get('prompt'):
+                                    return result
+            
             # WebP can have EXIF data
             exif_data = img.getexif()
             if exif_data:
                 for tag_id, value in exif_data.items():
                     tag = TAGS.get(tag_id, tag_id)
                     if tag in ('UserComment', 'ImageDescription'):
+                        if isinstance(value, bytes):
+                            value = _decode_user_comment(value)
                         if isinstance(value, str) and value:
-                            result = _parse_a1111_metadata(value, result)
+                            try:
+                                json_data = json.loads(value)
+                                result = _parse_json_metadata(json_data, result)
+                                if result.get('prompt'):
+                                    return result
+                            except json.JSONDecodeError:
+                                result = _parse_a1111_metadata(value, result)
     except Exception as e:
         print(f"[METADATA] WebP extraction error: {e}")
     
