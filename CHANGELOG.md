@@ -7,12 +7,6 @@ All notable changes to the AI Photo Frame application will be documented in this
 ## [2026-01-09]
 
 ### Added
-- **LoRA metadata extraction**<br>
-  Metadata view now displays LoRAs used with their weights. Supports A1111/Forge style `<lora:name:weight>` in prompts and WanGP JSON `activated_loras` fields.
-
-- **WanGP Comment field metadata**<br>
-  Metadata extraction now reads from the EXIF Comment field where WanGP stores its JSON metadata, in addition to the UserComment field used by Forge.
-
 - **Native video fullscreen button**<br>
   New fullscreen button in video controls that uses the browser's native video fullscreen mode (separate from page expand).
 
@@ -25,6 +19,17 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 - **Dynamic image count in gallery**<br>
   The "Loaded X of Y images" counter now updates as you scroll and load more images.
+
+---
+
+## [2026-01-08]
+
+### Added
+- **LoRA metadata extraction**<br>
+  Metadata view now displays LoRAs used with their weights. Supports A1111/Forge style `<lora:name:weight>` in prompts and WanGP JSON `activated_loras` fields.
+
+- **WanGP Comment field metadata**<br>
+  Metadata extraction now reads from the EXIF Comment field where WanGP stores its JSON metadata, in addition to the UserComment field used by Forge.
 
 ---
 
