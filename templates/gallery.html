@@ -148,8 +148,9 @@
         </div>
 
         <!-- Loading indicator for infinite scroll -->
-        <div class="text-center mt-4 mb-4" id="scroll-status">
-            <p class="text-muted">Loaded {{ images|length }} of {{ total_images }} images</p>
+        <div class="text-center mt-4 mb-4" id="scroll-status" data-total="{{ total_images }}">
+            <p class="text-muted" id="scroll-status-text">Loaded <span id="loaded-count">{{ images|length }}</span> of
+                <span id="total-count">{{ total_images }}</span> images</p>
         </div>
     </div>
 

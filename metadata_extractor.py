@@ -30,7 +30,8 @@ def extract_embedded_metadata(file_path):
         'negative_prompt': None,
         'seed': None,
         'model': None,
-        'dimensions': None
+        'dimensions': None,
+        'loras': None  # List of {name, weight} dicts
     }
     
     try:
@@ -439,6 +440,12 @@ def _parse_a1111_metadata(text, result):
             if model_match:
                 result['model'] = model_match.group(1).strip()
     
+    # Extract LoRAs from prompt text (A1111 style: <lora:name:weight>)
+    if result.get('prompt'):
+        loras = _extract_loras_from_prompt(result['prompt'])
+        if loras:
+            result['loras'] = loras
+    
     return result
 
 
@@ -479,7 +486,82 @@ def _parse_json_metadata(data, result):
     elif 'width' in data and 'height' in data:
         result['dimensions'] = f"{data['width']}x{data['height']}"
     
+    # Extract LoRAs (WanGP style)
+    loras = []
+    
+    # Check for activated_loras with loras_multipliers
+    if 'activated_loras' in data:
+        lora_names = data['activated_loras']
+        multipliers = data.get('loras_multipliers', '1')
+        
+        # Handle multipliers as string, list, or single value
+        if isinstance(multipliers, str):
+            # Could be comma-separated or single value
+            mult_list = [m.strip() for m in multipliers.split(',') if m.strip()]
+        elif isinstance(multipliers, list):
+            mult_list = [str(m) for m in multipliers]
+        else:
+            mult_list = [str(multipliers)]
+        
+        for i, lora_name in enumerate(lora_names):
+            # Extract just the filename without path and extension
+            lora_basename = os.path.splitext(os.path.basename(lora_name))[0]
+            weight = mult_list[i] if i < len(mult_list) else (mult_list[0] if mult_list else '1')
+            loras.append({'name': lora_basename, 'weight': weight})
+    
+    # Track names we've already added to avoid duplicates
+    added_lora_names = {lora['name'].lower() for lora in loras}
+    
+    # Check for transformer_loras_filenames with transformer_loras_multipliers
+    # Only add if not already present from activated_loras
+    if 'transformer_loras_filenames' in data:
+        lora_names = data['transformer_loras_filenames']
+        multipliers = data.get('transformer_loras_multipliers', [])
+        
+        # Handle multipliers as list or single value
+        if isinstance(multipliers, str):
+            mult_list = [m.strip() for m in multipliers.split(',') if m.strip()]
+        elif isinstance(multipliers, list):
+            mult_list = [str(m) for m in multipliers]
+        else:
+            mult_list = [str(multipliers)] if multipliers else ['1']
+        
+        for i, lora_name in enumerate(lora_names):
+            lora_basename = os.path.splitext(os.path.basename(lora_name))[0]
+            # Skip if already added from activated_loras
+            if lora_basename.lower() in added_lora_names:
+                continue
+            weight = mult_list[i] if i < len(mult_list) else '1'
+            loras.append({'name': lora_basename, 'weight': weight})
+    
+    if loras:
+        result['loras'] = loras
+    
     return result
+
+
+def _extract_loras_from_prompt(prompt_text):
+    """
+    Extract LoRA tags from A1111/Forge style prompt text.
+    Format: <lora:name:weight> or <lora:name>
+    Returns list of {name, weight} dicts.
+    """
+    if not prompt_text:
+        return None
+    
+    loras = []
+    
+    # Pattern for <lora:name:weight> or <lora:name>
+    # Name can contain spaces, numbers, special chars
+    pattern = r'<lora:([^:>]+)(?::([^>]+))?>'
+    
+    matches = re.findall(pattern, prompt_text)
+    for match in matches:
+        name = match[0].strip()
+        weight = match[1].strip() if match[1] else '1'
+        loras.append({'name': name, 'weight': weight})
+    
+    return loras if loras else None
 
 
 def clear_metadata_cache():

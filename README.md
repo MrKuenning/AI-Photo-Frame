@@ -28,7 +28,7 @@ It monitors a folder for new images and videos and updates image and video files
 - **Authentication** - Optional passphrase login with user/admin roles
 - **Media Type Filters** - Toggle between photos, videos, or all
 - **Recursive Folder Navigation** - Browse nested folder structures
-- **Metadata Extraction** - Displays AI generation parameters from filenames and embedded metadata
+- **Metadata Extraction** - Displays AI generation parameters including prompts, seed, model, and LoRAs used
 - **Search Functionality** - Search by filename, prompt, or model
 - **Infinite Scroll** - Smooth loading for large libraries
 - **Delete & Flag NSFW** - Remove or flag unwanted images directly from the interface
@@ -42,6 +42,8 @@ It monitors a folder for new images and videos and updates image and video files
 - Plays MP4, WebM, MOV, AVI, MKV, and M4V formats
 - **Custom video controls** with auto-hide (no native browser overlays)
 - **Frame navigation** - First frame, step back/forward, last frame buttons
+- **Save frame** - Capture current frame as JPEG image
+- **Native fullscreen** - Fullscreen video with browser's native player
 - Seekable progress bar with time display
 - Mobile-responsive layout with larger touch targets
 - Auto-play with loop

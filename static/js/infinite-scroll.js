@@ -17,10 +17,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initialize intersection observer for infinite scrolling
     function initInfiniteScroll() {
+        console.log('[INFINITE SCROLL] Initializing, imageGrid:', imageGrid);
+
+        if (!imageGrid) {
+            console.error('[INFINITE SCROLL] No .image-grid element found!');
+            return;
+        }
+
         // Create intersection observer
         window.scrollObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
+                console.log('[INFINITE SCROLL] Observer entry:', entry.isIntersecting, 'loading:', loading, 'allLoaded:', allImagesLoaded);
                 if (entry.isIntersecting && !loading && !allImagesLoaded) {
+                    console.log('[INFINITE SCROLL] Triggering loadMoreImages()');
                     loadMoreImages();
                 }
             });
@@ -30,87 +39,134 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Create and position the sentinel element
         repositionSentinel();
+        console.log('[INFINITE SCROLL] Setup complete');
     }
 
     // Load more images
     function loadMoreImages() {
-        loading = true;
+        try {
+            console.log('[INFINITE SCROLL] loadMoreImages() starting');
+            loading = true;
 
-        // Calculate offset based on how many images are already in the grid
-        const currentImageCount = document.querySelectorAll('.image-container').length;
+            // Calculate offset based on how many images are already in the grid
+            const currentImageCount = document.querySelectorAll('.image-container').length;
+            console.log('[INFINITE SCROLL] currentImageCount:', currentImageCount);
 
-        // Show loading indicator
-        imageGrid.appendChild(loadingIndicator);
+            // Show loading indicator
+            imageGrid.appendChild(loadingIndicator);
 
-        // Get current filters from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const selectedSubfolder = urlParams.get('subfolder') || '';
-        const searchQuery = urlParams.get('search') || '';
-        const mediaType = urlParams.get('media_type') || 'all';
+            // Get current filters from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const selectedSubfolder = urlParams.get('subfolder') || '';
+            const searchQuery = urlParams.get('search') || '';
+            const mediaType = urlParams.get('media_type') || 'all';
 
-        // Build the query string with explicit offset
-        let queryString = `offset=${currentImageCount}`;
-        if (selectedSubfolder) {
-            queryString += `&subfolder=${encodeURIComponent(selectedSubfolder)}`;
+            // Build the query string with explicit offset
+            let queryString = `offset=${currentImageCount}`;
+            if (selectedSubfolder) {
+                queryString += `&subfolder=${encodeURIComponent(selectedSubfolder)}`;
+            }
+            if (searchQuery) {
+                queryString += `&search=${encodeURIComponent(searchQuery)}`;
+            }
+            if (mediaType && mediaType !== 'all') {
+                queryString += `&media_type=${encodeURIComponent(mediaType)}`;
+            }
+
+            // Add safe mode parameter if enabled
+            const safeMode = document.cookie.includes('safeMode=true');
+            if (safeMode) {
+                queryString += '&safe_mode=true';
+            }
+
+            // Build the final API URL
+            const apiUrl = `/load_more_images?${queryString}`;
+            console.log('[INFINITE SCROLL] Fetching:', apiUrl);
+
+            // Fetch more images
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    // Remove loading indicator
+                    if (loadingIndicator.parentNode) {
+                        loadingIndicator.parentNode.removeChild(loadingIndicator);
+                    }
+
+                    // Check if server is scanning - retry after delay
+                    if (data.scanning) {
+                        console.log('[INFINITE SCROLL] Server is scanning, will retry in 2s');
+                        loading = false;
+                        // Show scanning message
+                        const scanMsg = document.createElement('div');
+                        scanMsg.id = 'scanning-message';
+                        scanMsg.className = 'col-12 text-center my-4';
+                        scanMsg.innerHTML = '<p>Scanning files... please wait</p>';
+                        if (!document.getElementById('scanning-message')) {
+                            imageGrid.appendChild(scanMsg);
+                        }
+                        // Retry after 2 seconds
+                        setTimeout(() => {
+                            const msg = document.getElementById('scanning-message');
+                            if (msg) msg.remove();
+                            loadMoreImages();
+                        }, 2000);
+                        return;
+                    }
+
+                    if (data.images && data.images.length > 0) {
+                        // Append new images to the grid
+                        appendImages(data.images);
+                        // Update the loaded count
+                        updateScrollStatus(data.total);
+                    } else {
+                        // No more images to load
+                        allImagesLoaded = true;
+                        // Hide scroll status and show completion message
+                        const statusEl = document.getElementById('scroll-status');
+                        if (statusEl) statusEl.style.display = 'none';
+                        const endMessage = document.createElement('div');
+                        endMessage.className = 'col-12 text-center my-4';
+                        endMessage.innerHTML = '<p>All images loaded</p>';
+                        imageGrid.appendChild(endMessage);
+                    }
+
+                    loading = false;
+                })
+                .catch(error => {
+                    console.error('Error loading more images:', error);
+                    loading = false;
+
+                    // Remove loading indicator
+                    if (loadingIndicator.parentNode) {
+                        loadingIndicator.parentNode.removeChild(loadingIndicator);
+                    }
+
+                    // Show error message
+                    const errorMessage = document.createElement('div');
+                    errorMessage.className = 'col-12 text-center my-4 text-danger';
+                    errorMessage.innerHTML = '<p>Error loading more images. Please try again.</p>';
+                    imageGrid.appendChild(errorMessage);
+                });
+        } catch (e) {
+            console.error('[INFINITE SCROLL] Error in loadMoreImages:', e);
+            loading = false;
         }
-        if (searchQuery) {
-            queryString += `&search=${encodeURIComponent(searchQuery)}`;
-        }
-        if (mediaType && mediaType !== 'all') {
-            queryString += `&media_type=${encodeURIComponent(mediaType)}`;
-        }
-
-        // Add safe mode parameter if enabled
-        const safeMode = document.cookie.includes('safeMode=true');
-        if (safeMode) {
-            queryString += '&safe_mode=true';
-        }
-
-        // Build the final API URL
-        const apiUrl = `/load_more_images?${queryString}`;
-
-        // Fetch more images
-        fetch(apiUrl)
-            .then(response => response.json())
-            .then(data => {
-                // Remove loading indicator
-                if (loadingIndicator.parentNode) {
-                    loadingIndicator.parentNode.removeChild(loadingIndicator);
-                }
-
-                if (data.images && data.images.length > 0) {
-                    // Append new images to the grid
-                    appendImages(data.images);
-                } else {
-                    // No more images to load
-                    allImagesLoaded = true;
-                    const endMessage = document.createElement('div');
-                    endMessage.className = 'col-12 text-center my-4';
-                    endMessage.innerHTML = '<p>No more images to load</p>';
-                    imageGrid.appendChild(endMessage);
-                }
-
-                loading = false;
-            })
-            .catch(error => {
-                console.error('Error loading more images:', error);
-                loading = false;
-
-                // Remove loading indicator
-                if (loadingIndicator.parentNode) {
-                    loadingIndicator.parentNode.removeChild(loadingIndicator);
-                }
-
-                // Show error message
-                const errorMessage = document.createElement('div');
-                errorMessage.className = 'col-12 text-center my-4 text-danger';
-                errorMessage.innerHTML = '<p>Error loading more images. Please try again.</p>';
-                imageGrid.appendChild(errorMessage);
-            });
     }
 
     // Sentinel element reference
     let sentinel;
+
+    // Update the scroll status counter
+    function updateScrollStatus(total) {
+        const loadedCount = document.getElementById('loaded-count');
+        const totalCount = document.getElementById('total-count');
+        if (loadedCount) {
+            loadedCount.textContent = document.querySelectorAll('.image-container').length;
+        }
+        if (totalCount && total) {
+            totalCount.textContent = total;
+        }
+    }
 
     // Create or reposition the sentinel element
     function repositionSentinel() {

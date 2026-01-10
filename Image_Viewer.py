@@ -666,6 +666,15 @@ def gallery():
 @app.route('/load_more_images')
 def load_more_images():
     """API endpoint for loading more images (infinite scroll)"""
+    # Check if scan is in progress - tell client to retry later
+    if scan_in_progress:
+        return jsonify({
+            'images': [],
+            'has_more': True,
+            'total': 0,
+            'scanning': True  # Tell frontend to wait and retry
+        })
+    
     # Get pagination parameters - use explicit offset instead of page to avoid mismatches
     offset = request.args.get('offset', type=int, default=0)
     batch_size = 20  # Number of images to load per batch
@@ -708,6 +717,13 @@ def load_more_images():
     # Filter out NSFW content if safe mode is enabled
     if safe_mode:
         filtered_images = [img for img in filtered_images if not img.get('is_nsfw', False)]
+    
+    # Debug log for infinite scroll issues
+    print("=" * 80)
+    print(f"[LOAD MORE] offset={offset}, filtered_count={len(filtered_images)}, safe_mode={safe_mode}")
+    print(f"[LOAD MORE] subfolder='{selected_subfolder}', media_type='{media_type}'")
+    print(f"[LOAD MORE] batch will be [{offset}:{offset + batch_size}]")
+    print("=" * 80)
     
     # Get batch of images
     batch_images = filtered_images[offset:offset + batch_size]
@@ -967,6 +983,8 @@ def image_info(filename):
                     result['model'] = embedded['model']
                 if embedded.get('dimensions'):
                     result['dimensions'] = embedded['dimensions']
+                if embedded.get('loras'):
+                    result['loras'] = embedded['loras']
             except Exception as e:
                 print(f"[METADATA] Error extracting embedded metadata: {e}")
             

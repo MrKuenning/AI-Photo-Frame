@@ -73,6 +73,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 <button class="video-btn video-save-frame-btn" title="Save Frame as Image">
                     <i class="bi bi-camera-fill"></i>
                 </button>
+                <button class="video-btn video-native-fullscreen-btn" title="Fullscreen Video">
+                    <i class="bi bi-fullscreen"></i>
+                </button>
             </div>
         `;
 
@@ -87,6 +90,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const lastBtn = controls.querySelector('.video-last-btn');
         const muteBtn = controls.querySelector('.video-mute-btn');
         const saveFrameBtn = controls.querySelector('.video-save-frame-btn');
+        const nativeFullscreenBtn = controls.querySelector('.video-native-fullscreen-btn');
         const progressContainer = controls.querySelector('.video-progress-container');
         const progressFill = controls.querySelector('.video-progress-fill');
         const timeDisplay = controls.querySelector('.video-time');
@@ -197,6 +201,33 @@ document.addEventListener('DOMContentLoaded', function () {
             e.stopPropagation();
             video.muted = !video.muted;
             muteBtn.querySelector('i').className = video.muted ? 'bi bi-volume-mute-fill' : 'bi bi-volume-up-fill';
+        });
+
+        // Native fullscreen for video element
+        nativeFullscreenBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (document.fullscreenElement === video) {
+                document.exitFullscreen();
+            } else {
+                // Use the video element's fullscreen, not the container
+                if (video.requestFullscreen) {
+                    video.requestFullscreen();
+                } else if (video.webkitRequestFullscreen) {
+                    video.webkitRequestFullscreen();
+                } else if (video.webkitEnterFullscreen) {
+                    // iOS Safari
+                    video.webkitEnterFullscreen();
+                }
+            }
+        });
+
+        // Update fullscreen button icon on fullscreen change
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement === video) {
+                nativeFullscreenBtn.querySelector('i').className = 'bi bi-fullscreen-exit';
+            } else {
+                nativeFullscreenBtn.querySelector('i').className = 'bi bi-fullscreen';
+            }
         });
 
         // Save Frame as Image

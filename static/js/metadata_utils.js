@@ -24,6 +24,14 @@ function formatMetadataHTML(data, subfolder = '') {
     if (data.dimensions) {
         metadataHtml += `<p><strong>Dimensions:</strong> ${data.dimensions}</p>`;
     }
+    if (data.loras && data.loras.length > 0) {
+        const loraList = data.loras.map(lora => {
+            const weight = parseFloat(lora.weight);
+            const weightDisplay = Number.isInteger(weight) ? weight.toFixed(0) : weight.toFixed(2);
+            return `${lora.name} (${weightDisplay})`;
+        }).join(', ');
+        metadataHtml += `<p><strong>LoRAs:</strong> ${loraList}</p>`;
+    }
     if (data.date_time) {
         metadataHtml += `<p><strong>Created:</strong> ${data.date_time}</p>`;
     }
