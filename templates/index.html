@@ -78,6 +78,9 @@
                 <button type="button" class="toggle-btn" id="home-delete-btn" title="Delete Image">
                     <i class="bi bi-trash"></i>
                 </button>
+                <button type="button" class="toggle-btn" id="home-flag-btn" title="Flag as NSFW">
+                    <i class="bi bi-flag"></i>
+                </button>
                 <button type="button" class="toggle-btn toggle-fullscreen-btn" title="Enter Fullscreen">
                     <i class="bi bi-arrows-fullscreen"></i>
                 </button>
@@ -175,6 +178,11 @@
                 // Highlight selected
                 document.querySelectorAll('.thumbnail-only').forEach(t => t.classList.remove('selected'));
                 this.closest('.thumbnail-only').classList.add('selected');
+
+                // Update flag button state for new image
+                if (window.updateHomeFlagButton) {
+                    window.updateHomeFlagButton();
+                }
             });
         });
 

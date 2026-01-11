@@ -3,91 +3,103 @@
 {% block content %}
 <!-- Consolidated Navigation Bar -->
 <div class="glass-card mb-3 p-3">
-    <!-- Row 1: Breadcrumb + Sibling Folders on same line -->
-    <div class="d-flex align-items-center mb-2" style="gap: var(--spacing-md);">
-        <!-- Breadcrumb path -->
-        <span class="text-muted" style="font-size: 0.9rem; white-space: nowrap;">
-            <i class="bi bi-house-door"></i>
-            <a href="{{ url_for('gallery') }}"
-                style="color: var(--color-accent-primary); text-decoration: none;">Home</a>
-            {% if breadcrumb_parts %}
-            {% for i in range(breadcrumb_parts|length) %}
-            {% set current_path = breadcrumb_parts[:i+1]|join('/') %}
-            <i class="bi bi-chevron-right" style="font-size: 0.8rem;"></i>
-            {% if i == breadcrumb_parts|length - 1 %}
-            <strong>{{ breadcrumb_parts[i] }}</strong>
-            {% else %}
-            <a href="{{ url_for('gallery', subfolder=current_path) }}"
-                style="color: var(--color-accent-primary); text-decoration: none;">{{ breadcrumb_parts[i] }}</a>
+    <!-- Main toolbar row (wraps on narrow screens) -->
+    <div class="gallery-toolbar-main">
+        <!-- Left side: Breadcrumb + Folder Navigation -->
+        <div class="gallery-toolbar-nav">
+            <!-- Breadcrumb path -->
+            <span class="breadcrumb-path">
+                <i class="bi bi-house-door"></i>
+                <a href="{{ url_for('gallery') }}" class="breadcrumb-link">Root</a>
+                {% if breadcrumb_parts %}
+                {% for i in range(breadcrumb_parts|length) %}
+                {% set current_path = breadcrumb_parts[:i+1]|join('/') %}
+                <i class="bi bi-chevron-right breadcrumb-separator"></i>
+                {% if i == breadcrumb_parts|length - 1 %}
+                <strong>{{ breadcrumb_parts[i] }}</strong>
+                {% else %}
+                <a href="{{ url_for('gallery', subfolder=current_path) }}" class="breadcrumb-link">{{
+                    breadcrumb_parts[i] }}</a>
+                {% endif %}
+                {% endfor %}
+                {% else %}
+                <i class="bi bi-chevron-right breadcrumb-separator"></i> <strong>All Images</strong>
+                {% endif %}
+            </span>
+
+            <!-- Separator -->
+            {% if (selected_subfolder and sibling_folders) or not selected_subfolder %}
+            <span class="nav-separator">|</span>
+
+            <!-- Sibling folders OR top-level folders -->
+            <div class="folder-nav-scroll">
+                {% if selected_subfolder and sibling_folders %}
+                {% for sibling in sibling_folders %}
+                {% if '/' in selected_subfolder %}
+                {% set parent_path = selected_subfolder.rsplit('/', 1)[0] %}
+                {% set sibling_path = parent_path + '/' + sibling %}
+                {% else %}
+                {% set sibling_path = sibling %}
+                {% endif %}
+                <a href="{{ url_for('gallery', subfolder=sibling_path) }}"
+                    class="folder-link {% if sibling == current_folder %}active{% endif %}">
+                    <i class="bi bi-folder-fill"></i> {{ sibling }}
+                </a>
+                {% endfor %}
+                {% elif not selected_subfolder %}
+                {% for subfolder in subfolders %}
+                <a href="{{ url_for('gallery', subfolder=subfolder) }}" class="folder-link">
+                    <i class="bi bi-folder-fill"></i> {{ subfolder }}
+                </a>
+                {% endfor %}
+                {% endif %}
+            </div>
             {% endif %}
-            {% endfor %}
-            {% else %}
-            <i class="bi bi-chevron-right" style="font-size: 0.8rem;"></i> <strong>All Images</strong>
+
+            <!-- Child folders (subfolders of current folder) -->
+            {% if child_folders %}
+            <div class="child-folders-inline">
+                <span class="child-folder-indicator">└</span>
+                {% for child in child_folders %}
+                <a href="{{ url_for('gallery', subfolder=selected_subfolder + '/' + child) }}"
+                    class="folder-link subfolder-btn">
+                    <i class="bi bi-folder"></i> {{ child }}
+                </a>
+                {% endfor %}
+            </div>
             {% endif %}
-        </span>
-
-        <!-- Separator -->
-        {% if (selected_subfolder and sibling_folders) or not selected_subfolder %}
-        <span class="text-muted" style="font-size: 1.2rem;">|</span>
-
-        <!-- Sibling folders OR top-level folders inline (text-style links) -->
-        {% if selected_subfolder and sibling_folders %}
-        <div style="margin: 0; display: flex; gap: var(--spacing-md); flex-wrap: wrap;">
-            {% for sibling in sibling_folders %}
-            {% if '/' in selected_subfolder %}
-            {% set parent_path = selected_subfolder.rsplit('/', 1)[0] %}
-            {% set sibling_path = parent_path + '/' + sibling %}
-            {% else %}
-            {% set sibling_path = sibling %}
-            {% endif %}
-            <a href="{{ url_for('gallery', subfolder=sibling_path) }}"
-                style="color: {% if sibling == current_folder %}var(--color-text-primary); font-weight: bold;{% else %}var(--color-accent-primary);{% endif %} text-decoration: none; font-size: 0.9rem;">
-                <i class="bi bi-folder-fill"></i> {{ sibling }}
-            </a>
-            {% endfor %}
-        </div>
-        {% elif not selected_subfolder %}
-        <div style="margin: 0; display: flex; gap: var(--spacing-md); flex-wrap: wrap;">
-            {% for subfolder in subfolders %}
-            <a href="{{ url_for('gallery', subfolder=subfolder) }}"
-                style="color: var(--color-accent-primary); text-decoration: none; font-size: 0.9rem;">
-                <i class="bi bi-folder-fill"></i> {{ subfolder }}
-            </a>
-            {% endfor %}
-        </div>
-        {% endif %}
-        {% endif %}
-
-        <!-- Spacer to push controls to the right -->
-        <div class="flex-grow-1"></div>
-
-        <!-- Thumbnail Size Slider -->
-        <div class="flex-shrink-0 d-flex align-items-center" style="min-width: 220px; gap: 8px;">
-            <i class="bi bi-sliders" style="font-size: 0.85rem;"></i>
-            <input type="range" class="form-range" id="gallery-thumbnail-slider" min="150" max="400" value="200"
-                step="25" style="flex: 1;">
-            <span id="gallery-thumbnail-size-label"
-                style="font-size: 0.85rem; min-width: 50px; text-align: right;">200px</span>
         </div>
 
-        <!-- Scan Content Button -->
-        <button id="scan-content-btn" class="btn btn-sm btn-outline-warning" title="Scan folder for NSFW content">
-            <i class="bi bi-shield-exclamation"></i> Scan Content
-        </button>
+        <!-- Right side: Controls -->
+        <div class="gallery-toolbar-controls">
+            <!-- Thumbnail Size Slider -->
+            <div class="control-group thumbnail-slider-group">
+                <i class="bi bi-sliders"></i>
+                <input type="range" class="form-range" id="gallery-thumbnail-slider" min="150" max="400" value="200"
+                    step="25">
+                <span id="gallery-thumbnail-size-label">200px</span>
+            </div>
 
-        <!-- Search Bar -->
-        <div class="flex-shrink-0" style="min-width: 300px; max-width: 400px;">
-            <form action="{{ url_for('gallery') }}" method="get" id="search-form">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text glass-input"><i class="bi bi-search"></i></span>
-                    <input type="text" id="image-search" name="search" class="form-control glass-input"
-                        placeholder="Search..." value="{{ request.args.get('search', '') }}">
-                    {% if selected_subfolder %}
-                    <input type="hidden" name="subfolder" value="{{ selected_subfolder }}">
-                    {% endif %}
-                    <button type="submit" class="btn btn-primary">Search</button>
-                </div>
-            </form>
+            <!-- Scan Content Button -->
+            <button id="scan-content-btn" class="btn btn-sm btn-outline-warning" title="Scan folder for NSFW content">
+                <i class="bi bi-shield-exclamation"></i>
+                <span class="btn-text">Scan Content</span>
+            </button>
+
+            <!-- Search Bar -->
+            <div class="control-group search-group">
+                <form action="{{ url_for('gallery') }}" method="get" id="search-form">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text glass-input"><i class="bi bi-search"></i></span>
+                        <input type="text" id="image-search" name="search" class="form-control glass-input"
+                            placeholder="Search..." value="{{ request.args.get('search', '') }}">
+                        {% if selected_subfolder %}
+                        <input type="hidden" name="subfolder" value="{{ selected_subfolder }}">
+                        {% endif %}
+                        <button type="submit" class="btn btn-primary">Search</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -99,29 +111,6 @@
         </div>
         <small id="scan-progress-text" class="text-muted">Scanning...</small>
     </div>
-
-    <!-- Row 2: Child folders with L-shape indicator -->
-    {% if child_folders %}
-    <div class="d-flex align-items-start" style="gap: var(--spacing-sm); margin-top: var(--spacing-md);">
-        <!-- L-shape indicator -->
-        <div style="color: var(--color-text-secondary); font-size: 1.5rem; line-height: 1; margin-top: -4px;">
-            └
-        </div>
-        <div class="subfolder-nav" style="margin: 0;">
-            {% for child in child_folders %}
-            <a href="{{ url_for('gallery', subfolder=selected_subfolder + '/' + child) }}"
-                class="btn btn-sm btn-outline-secondary subfolder-btn">
-                <i class="bi bi-folder"></i> {{ child }}
-            </a>
-            {% endfor %}
-        </div>
-    </div>
-    {% elif selected_subfolder and not sibling_folders %}
-    <!-- No children and no siblings -->
-    <div style="margin-top: var(--spacing-md);">
-        <small class="text-muted"><i class="bi bi-info-circle"></i> No subfolders</small>
-    </div>
-    {% endif %}
 </div>
 
 <!-- Gallery Container -->
@@ -150,7 +139,8 @@
         <!-- Loading indicator for infinite scroll -->
         <div class="text-center mt-4 mb-4" id="scroll-status" data-total="{{ total_images }}">
             <p class="text-muted" id="scroll-status-text">Loaded <span id="loaded-count">{{ images|length }}</span> of
-                <span id="total-count">{{ total_images }}</span> images</p>
+                <span id="total-count">{{ total_images }}</span> images
+            </p>
         </div>
     </div>
 

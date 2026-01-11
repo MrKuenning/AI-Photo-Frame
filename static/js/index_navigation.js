@@ -106,6 +106,87 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
             });
         }
+
+        // Flag NSFW button handler - toggles between flag/unflag without confirmation
+        const flagButton = document.getElementById('home-flag-btn');
+        if (flagButton) {
+            // Update flag button icon based on current image's NSFW status
+            function updateFlagButtonState() {
+                if (!heroContainer) return;
+                const subfolder = heroContainer.dataset.subfolder || '';
+                const isNsfw = subfolder.toLowerCase().includes('nsfw');
+                const icon = flagButton.querySelector('i');
+                if (isNsfw) {
+                    icon.className = 'bi bi-flag-fill';
+                    flagButton.classList.add('active');
+                    flagButton.title = 'Unflag NSFW';
+                } else {
+                    icon.className = 'bi bi-flag';
+                    flagButton.classList.remove('active');
+                    flagButton.title = 'Flag as NSFW';
+                }
+            }
+
+            // Initial state
+            updateFlagButtonState();
+
+            flagButton.addEventListener('click', function () {
+                if (!heroContainer) return;
+
+                const filename = heroContainer.dataset.filename;
+                const subfolder = heroContainer.dataset.subfolder || '';
+                const fullPath = subfolder ? subfolder + '/' + filename : filename;
+                const isNsfw = subfolder.toLowerCase().includes('nsfw');
+
+                // Choose endpoint based on current state
+                const endpoint = isNsfw ? 'unflag_nsfw' : 'flag_nsfw';
+
+                // Send POST request (no confirmation)
+                fetch(`/${endpoint}/${encodeURIComponent(fullPath)}`, {
+                    method: 'POST'
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log(`File ${isNsfw ? 'unflagged' : 'flagged'} successfully`);
+
+                            // Remove the thumbnail from the sidebar (it moved to different folder)
+                            const thumbnailLink = currentImages[currentIndex];
+                            if (thumbnailLink) {
+                                const thumbnailContainer = thumbnailLink.closest('.mb-2');
+                                if (thumbnailContainer) {
+                                    thumbnailContainer.remove();
+                                }
+                            }
+
+                            // Update images array
+                            updateCurrentImages();
+
+                            // Navigate to next image, or previous if at end, or reload if none left
+                            if (currentImages.length === 0) {
+                                window.location.reload();
+                            } else if (currentIndex >= currentImages.length) {
+                                currentIndex = currentImages.length - 1;
+                                navigateToImage(currentIndex);
+                            } else {
+                                navigateToImage(currentIndex);
+                            }
+
+                            // Update button state for new image
+                            updateFlagButtonState();
+                        } else {
+                            alert('Error: ' + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error toggling NSFW flag:', error);
+                        alert('Error toggling NSFW flag. Please try again.');
+                    });
+            });
+
+            // Update flag state when navigating to new image
+            window.updateHomeFlagButton = updateFlagButtonState;
+        }
     }
 
     // Update the current images array from thumbnail links
@@ -202,6 +283,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Update navigation buttons
         updateNavButtons();
+
+        // Update flag button state for new image
+        if (window.updateHomeFlagButton) {
+            window.updateHomeFlagButton();
+        }
     }
 
     // Update navigation buttons state

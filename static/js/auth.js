@@ -223,9 +223,7 @@ function updateUIPermissions() {
         if (deleteBtn) {
             deleteBtn.style.display = 'none';
         }
-        if (flagBtn) {
-            flagBtn.style.display = 'none';
-        }
+        // Note: Flag button stays visible - flagging doesn't require admin privileges
     }
 
     // Update safemode toggle - add lock icon if locked

@@ -104,10 +104,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Add expanded class
             heroContainer.classList.add('hero-expanded');
+            document.body.classList.add('has-hero-expanded'); // Fallback for Safari :has() support
             heroImage.style.cursor = 'zoom-out';
             document.body.style.overflow = 'hidden';
 
-            console.log('[MEDIA CONTROLS] Entered fullscreen');
+            // FORCE card-footer to be visible on all devices including iPad
+            const cardFooter = document.querySelector('.card-footer');
+            if (cardFooter) {
+                cardFooter.style.cssText = 'position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; z-index: 10000 !important; display: flex !important; min-height: 60px !important; background: rgba(20,20,30,0.9) !important; padding-bottom: env(safe-area-inset-bottom, 10px) !important;';
+                cardFooter.dataset.wasFixed = 'true';
+            }
+
+            // FORCE card-header to be visible on gallery preview
+            const cardHeader = document.querySelector('#large-preview-container.active .card-header');
+            if (cardHeader) {
+                cardHeader.style.cssText = 'display: flex !important; visibility: visible !important; min-height: 50px !important;';
+                cardHeader.dataset.wasForced = 'true';
+            }
+
+            console.log('[MEDIA CONTROLS] Entered fullscreen, card-footer fixed:', !!cardFooter, 'card-header fixed:', !!cardHeader);
         } else {
             // Restore backdrop-filter
             const mainImageContainer = heroContainer.closest('.main-image-container');
@@ -124,8 +139,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Remove expanded class
             heroContainer.classList.remove('hero-expanded');
+            document.body.classList.remove('has-hero-expanded'); // Remove Safari fallback class
             heroImage.style.cursor = 'zoom-in';
             document.body.style.overflow = '';
+
+            // Reset card-footer to original state
+            const cardFooter = document.querySelector('.card-footer');
+            if (cardFooter && cardFooter.dataset.wasFixed === 'true') {
+                cardFooter.style.cssText = '';
+                delete cardFooter.dataset.wasFixed;
+            }
+
+            // Reset card-header if it was forced
+            const cardHeader = document.querySelector('.card-header');
+            if (cardHeader && cardHeader.dataset.wasForced === 'true') {
+                cardHeader.style.cssText = '';
+                delete cardHeader.dataset.wasForced;
+            }
 
             console.log('[MEDIA CONTROLS] Exited fullscreen');
         }

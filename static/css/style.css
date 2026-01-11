@@ -968,7 +968,48 @@ video::-webkit-media-controls-panel {
     border-top: 1px solid var(--glass-border) !important;
     margin: 0 !important;
     border-radius: 0 !important;
-    height: 60px;
+    min-height: 60px;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px) !important;
+}
+
+/* FALLBACK: Body class-based rules that work at ALL screen sizes (Safari compat) */
+body.has-hero-expanded .card-footer {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 10000 !important;
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-top: 1px solid var(--glass-border) !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    min-height: 60px !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px) !important;
+}
+
+body.has-hero-expanded .hero-expanded {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 60px !important;
+    width: 100vw !important;
+    height: calc(100vh - 60px) !important;
+    height: calc(100dvh - 60px) !important;
+    /* iOS fix */
+    z-index: 9999 !important;
+    background: rgba(0, 0, 0, 0.95) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+body.has-hero-expanded .sidebar {
+    display: none !important;
 }
 
 /* For gallery page - ensure preview card footer stays visible */
@@ -992,6 +1033,8 @@ video::-webkit-media-controls-panel {
     height: 100% !important;
     max-width: 100vw !important;
     max-height: calc(100vh - 60px) !important;
+    max-height: calc(100dvh - 60px) !important;
+    /* iOS fix */
     flex-direction: column !important;
 }
 
@@ -1000,6 +1043,8 @@ video::-webkit-media-controls-panel {
     height: 100% !important;
     max-width: 100vw !important;
     max-height: calc(100vh - 60px) !important;
+    max-height: calc(100dvh - 60px) !important;
+    /* iOS fix */
     object-fit: contain !important;
 }
 
@@ -1014,14 +1059,194 @@ video::-webkit-media-controls-panel {
     border-radius: 0 !important;
 }
 
-/* Hide other UI elements when expanded */
-.hero-expanded~* {
-    display: none;
+/* Hide other UI elements when expanded - but NOT the card-footer */
+.hero-expanded~.card-header {
+    display: none !important;
 }
 
-/* But keep the navigation footer visible */
-body:has(.hero-expanded) .card-footer {
+/* Keep the navigation footer visible (Safari fallback - :has() not fully supported) */
+body:has(.hero-expanded) .card-footer,
+body.has-hero-expanded .card-footer {
     display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 10000 !important;
+}
+
+
+/* ==========================================
+   Gallery Toolbar
+   ========================================== */
+/* Main toolbar wrapper - single row on wide screens, wraps on narrow */
+.gallery-toolbar-main {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+}
+
+/* Navigation section - shrinks to allow controls to fit, but wraps controls if needed */
+.gallery-toolbar-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex: 1 1 400px;
+    /* Grow, shrink, but wrap if less than 400px available */
+    min-width: 200px;
+    flex-wrap: wrap;
+}
+
+/* Child folders inline with navigation */
+.child-folders-inline {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-basis: 100%;
+    /* Start on new line within nav section */
+    padding-left: var(--spacing-lg);
+}
+
+.breadcrumb-path {
+    font-size: 0.9rem;
+    white-space: nowrap;
+    color: var(--color-text-secondary);
+}
+
+.breadcrumb-link {
+    color: var(--color-accent-primary);
+    text-decoration: none;
+}
+
+.breadcrumb-link:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb-separator {
+    font-size: 0.8rem;
+    margin: 0 0.25rem;
+}
+
+.nav-separator {
+    color: var(--color-text-secondary);
+    font-size: 1.2rem;
+}
+
+.folder-nav-scroll {
+    display: flex;
+    gap: var(--spacing-md);
+    overflow-x: auto;
+    flex: 1;
+    min-width: 0;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+}
+
+.folder-nav-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+.folder-nav-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-border-hover);
+    border-radius: 2px;
+}
+
+.folder-link {
+    color: var(--color-accent-primary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-fast);
+}
+
+.folder-link:hover {
+    background: var(--color-surface-hover);
+}
+
+.folder-link.active {
+    color: var(--color-text-primary);
+    font-weight: bold;
+    background: var(--color-surface);
+}
+
+.gallery-toolbar-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex: 0 1 auto;
+    /* Don't grow, but allow shrinking when needed */
+    flex-wrap: wrap;
+    max-width: 100%;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.thumbnail-slider-group {
+    min-width: 120px;
+    flex: 0 1 180px;
+    /* Don't grow, allow shrinking, basis 180px */
+}
+
+.thumbnail-slider-group i {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+}
+
+.thumbnail-slider-group .form-range {
+    flex: 1;
+}
+
+#gallery-thumbnail-size-label {
+    font-size: 0.85rem;
+    min-width: 45px;
+    text-align: right;
+    color: var(--color-text-secondary);
+}
+
+.search-group {
+    flex: 1 1 150px;
+    /* Grow, shrink, min basis of 150px */
+    min-width: 100px;
+    max-width: 400px;
+}
+
+.search-group form {
+    width: 100%;
+}
+
+/* Child folders row */
+.child-folders-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    padding-left: var(--spacing-lg);
+}
+
+.child-folder-indicator {
+    color: var(--color-text-secondary);
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.subfolder-nav {
+    display: flex;
+    gap: var(--spacing-sm);
+    overflow-x: auto;
+    flex: 1;
+    padding-bottom: 4px;
+}
+
+.subfolder-btn {
+    white-space: nowrap;
 }
 
 
@@ -1035,6 +1260,7 @@ body:has(.hero-expanded) .card-footer {
     height: calc(100vh - 220px);
     min-height: 500px;
 }
+
 
 #gallery-grid-container {
     overflow-y: auto;
@@ -1214,6 +1440,23 @@ body:has(.hero-expanded) .card-footer {
     background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
     padding: var(--spacing-md);
+}
+
+/* Ensure card-header is always visible on ALL screen sizes when preview is active */
+#large-preview-container.active .card-header {
+    display: flex !important;
+    visibility: visible !important;
+    flex-shrink: 0 !important;
+    z-index: 10;
+    min-height: 50px;
+    position: relative !important;
+}
+
+/* Additional specificity for iPad Safari */
+#large-preview-container.active .preview-card .card-header {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 /* ==========================================
@@ -1452,6 +1695,75 @@ button:focus:not(:focus-visible) {
     #gallery-grid-container.squished {
         flex: 0 0 45%;
     }
+
+    /* Tablet hero-expanded fullscreen fixes for iPad */
+    .hero-expanded {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 60px !important;
+        width: 100vw !important;
+        height: calc(100vh - 60px) !important;
+        z-index: 9999 !important;
+        background: rgba(0, 0, 0, 0.95) !important;
+    }
+
+    body:has(.hero-expanded) .card-footer,
+    body.has-hero-expanded .card-footer {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 60px !important;
+        z-index: 10000 !important;
+        background: var(--glass-bg) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+    }
+
+    body:has(.hero-expanded) .sidebar,
+    body.has-hero-expanded .sidebar {
+        display: none !important;
+    }
+
+    /* Ensure card-footer buttons don't wrap on tablet */
+    .card-footer .d-flex {
+        flex-wrap: nowrap !important;
+    }
+
+    /* Ensure card-header (with flag/delete buttons) is visible on tablet */
+    #large-preview-container.active .card-header {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        flex-shrink: 0;
+        min-height: 50px;
+        position: relative;
+        z-index: 100;
+    }
+
+    #large-preview-container.active .preview-card .card-header {
+        display: flex !important;
+        visibility: visible !important;
+    }
+
+    /* Gallery toolbar responsive - tablet */
+    .gallery-toolbar-controls {
+        margin-top: var(--spacing-sm);
+    }
+
+    #scan-content-btn .btn-text {
+        display: none;
+    }
+
+    .search-group {
+        min-width: 150px;
+    }
+
+    .thumbnail-slider-group {
+        min-width: 150px;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1459,6 +1771,32 @@ button:focus:not(:focus-visible) {
         padding-left: var(--spacing-sm);
         padding-right: var(--spacing-sm);
         padding-top: var(--spacing-sm);
+    }
+
+    /* Gallery toolbar responsive - mobile */
+    .gallery-toolbar-nav {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+    }
+
+    .gallery-toolbar-controls {
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+    }
+
+    #scan-content-btn .btn-text {
+        display: none;
+    }
+
+    .search-group {
+        flex: 1 1 100%;
+        max-width: none;
+        order: 10;
+    }
+
+    .thumbnail-slider-group {
+        flex: 1;
+        min-width: 120px;
     }
 
     .main-content {
@@ -1903,12 +2241,26 @@ video::-webkit-media-controls-timeline {
         left: var(--spacing-sm);
     }
 
-    /* Main image container: full width, takes priority */
+    /* Main image container: flexible height, takes priority */
     .main-image-container {
         order: 1;
-        flex: none;
-        height: 60vh;
+        flex: 1 1 auto;
+        /* Allow growing/shrinking */
+        height: auto;
+        max-height: 75vh;
+        max-height: 75dvh;
+        /* iOS fix */
+        /* Allow up to 75% of screen for image */
         min-height: 300px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .main-image-container .hero-view {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
     }
 
     .main-image-container.expanded {
@@ -1947,11 +2299,13 @@ video::-webkit-media-controls-timeline {
     }
 
     .card-footer .d-flex {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        overflow-x: auto;
     }
 
     .card-footer .btn {
-        min-width: 100px;
+        min-width: 80px;
+        flex-shrink: 1;
     }
 
     /* Mobile Video Controls - two rows layout */
@@ -2042,16 +2396,24 @@ video::-webkit-media-controls-timeline {
     }
 
 
-    body:has(.hero-expanded) .card-footer {
+    body:has(.hero-expanded) .card-footer,
+    body.has-hero-expanded .card-footer {
         position: fixed !important;
         bottom: 0 !important;
         left: 0 !important;
         right: 0 !important;
-        height: 60px !important;
+        min-height: 60px !important;
+        height: auto !important;
+        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+        padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px) !important;
         z-index: 10000 !important;
+        background: var(--glass-bg) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
     }
 
     body:has(.hero-expanded) .sidebar,
+    body.has-hero-expanded .sidebar,
     .hero-expanded~.sidebar {
         display: none !important;
     }
@@ -2078,9 +2440,68 @@ video::-webkit-media-controls-timeline {
     #large-preview-container.active {
         width: 100% !important;
         flex: none !important;
-        height: 60vh !important;
+        /* Use auto height with max-height to ensure buttons are always visible */
+        height: auto !important;
+        max-height: calc(100vh - 200px) !important;
+        max-height: calc(100dvh - 200px) !important;
+        /* iOS fix */
         overflow: visible !important;
         margin-top: var(--spacing-md);
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    #large-preview-container.active .preview-card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        max-height: calc(100vh - 220px);
+        max-height: calc(100dvh - 220px);
+        /* iOS fix */
+    }
+
+    /* Ensure card-header (with flag/delete buttons) is always visible on mobile */
+    #large-preview-container.active .card-header {
+        flex-shrink: 0;
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative;
+        z-index: 100;
+        min-height: 50px;
+    }
+
+    #large-preview-container.active .preview-card .card-header {
+        display: flex !important;
+        visibility: visible !important;
+    }
+
+    #large-preview-container.active .preview-card-body {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    #large-preview-container.active .large-preview-image-container {
+        height: 100%;
+        max-height: 100%;
+    }
+
+    #large-preview-container.active .hero-image {
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    /* Ensure card-footer (navigation buttons) is always visible */
+    #large-preview-container.active .card-footer {
+        flex-shrink: 0;
+        position: relative;
+        bottom: 0;
+    }
+
+    /* Don't wrap card-footer buttons on mobile - keep on one row */
+    .card-footer .d-flex {
+        flex-wrap: nowrap !important;
     }
 }
 

@@ -19,6 +19,36 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initialize
     function init() {
+        // Dynamic layout adjustment for gallery
+        function adjustGalleryHeight() {
+            const galleryContainer = document.getElementById('gallery-container');
+            const toolbar = document.querySelector('.gallery-toolbar-main');
+
+            if (galleryContainer && toolbar) {
+                // Calculate space used by header elements (navbar + toolbar)
+                const toolbarRect = toolbar.getBoundingClientRect();
+                const usedHeight = toolbarRect.bottom;
+
+                // Calculate available height (viewport - used space - bottom margin)
+                const viewportHeight = window.innerHeight;
+                const availableHeight = viewportHeight - usedHeight - 40; // 40px buffer to prevent scroll
+
+                // Apply height if valid and not on mobile (let mobile stack naturally)
+                if (window.innerWidth > 768) {
+                    if (availableHeight > 300) {
+                        galleryContainer.style.height = `${availableHeight}px`;
+                    }
+                } else {
+                    // Reset height on mobile to allow CSS to control it (auto height)
+                    galleryContainer.style.height = '';
+                }
+            }
+        }
+
+        // Run on load and resize
+        adjustGalleryHeight();
+        window.addEventListener('resize', adjustGalleryHeight);
+
         // Store all image elements for navigation
         updateCurrentImages();
 
@@ -364,6 +394,19 @@ document.addEventListener('DOMContentLoaded', function () {
         // Show preview panel and adjust layout
         galleryGridContainer.classList.add('squished');
         largePreviewContainer.classList.add('active');
+
+        // FORCE card-header to be visible on iPad Safari
+        setTimeout(() => {
+            const cardHeader = largePreviewContainer.querySelector('.card-header');
+            console.log('[GALLERY] Card header found:', !!cardHeader);
+            if (cardHeader) {
+                cardHeader.style.display = 'flex';
+                cardHeader.style.visibility = 'visible';
+                cardHeader.style.minHeight = '50px';
+                cardHeader.style.opacity = '1';
+                console.log('[GALLERY] Card header styles applied:', cardHeader.style.cssText);
+            }
+        }, 50);
 
         // Remove selected class from all images
         document.querySelectorAll('.image-container').forEach(container => {

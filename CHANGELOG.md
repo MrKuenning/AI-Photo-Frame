@@ -4,6 +4,30 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-01-10]
+
+### Added
+- **Flag NSFW button on home page**<br>
+  Added flag button next to delete in home page navigation. Icon toggles between outline (not flagged) and filled+highlighted (in NSFW folder). No confirmation dialog.
+
+### Changed
+- **Flag/Unflag no longer requires admin**<br>
+  Users can now flag and unflag images without admin access. Only delete still requires admin role.
+
+### Fixed
+- **Mobile fullscreen navigation buttons**<br>
+  Improved CSS for card-footer positioning in fullscreen mode on mobile and tablet. Added JavaScript fallback to force card-footer visibility when entering fullscreen.
+- **iPad Navigation Visibility**<br>
+  Fixed issue where navigation and action buttons were off-screen or hidden on iPad/iOS devices by implementing `dvh` (dynamic viewport height) and proper safe-area padding.
+- **Gallery Toolbar Responsive Layout**<br>
+  Restructured gallery toolbar to wrap correctly on intermediate screens. Implemented dynamic JavaScript height adjustment to ensure content fits on screen when toolbar wraps.
+- **Mobile Home Page Image Sizing**<br>
+  Updated mobile home page layout to allow vertical images to utilize up to 75% of screen height, effectively using available space while keeping thumbnails accessible.
+- **Missing Flag Button on Mobile**<br>
+  Fixed bug where Flag button was incorrectly hidden on non-admin devices due to permission check logic.
+
+---
+
 ## [2026-01-09]
 
 ### Added

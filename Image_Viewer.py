@@ -103,6 +103,14 @@ def load_config():
 # Configuration
 CONFIG = load_config()
 
+# Context processor to inject config values into all templates
+@app.context_processor
+def inject_config():
+    """Make config values available in all templates"""
+    return {
+        'safe_mode_default': CONFIG.get('SAFE_MODE_DEFAULT', False)
+    }
+
 
 # Global variables
 image_cache = {}
@@ -465,8 +473,13 @@ def index():
         # Get media type filter (if any)
         media_type = request.args.get('media_type', 'all')
         
-        # Check if safe mode is enabled
-        safe_mode = request.cookies.get('safeMode') == 'true'
+        # Check if safe mode is enabled (cookie or config default for first visit)
+        safe_mode_cookie = request.cookies.get('safeMode')
+        if safe_mode_cookie is not None:
+            safe_mode = safe_mode_cookie == 'true'
+        else:
+            # First visit - use config default
+            safe_mode = CONFIG.get('SAFE_MODE_DEFAULT', False)
         
         # Filter images by top-level subfolder if selected
         filtered_images = image_list
@@ -547,8 +560,13 @@ def gallery():
         # Get media type filter (if any)
         media_type = request.args.get('media_type', 'all')
         
-        # Check if safe mode is enabled
-        safe_mode = request.cookies.get('safeMode') == 'true'
+        # Check if safe mode is enabled (cookie or config default for first visit)
+        safe_mode_cookie = request.cookies.get('safeMode')
+        if safe_mode_cookie is not None:
+            safe_mode = safe_mode_cookie == 'true'
+        else:
+            # First visit - use config default
+            safe_mode = CONFIG.get('SAFE_MODE_DEFAULT', False)
         
         # Filter images by selected subfolder (RECURSIVE - shows all images in folder and subfolders)
         filtered_images = image_list
@@ -688,8 +706,16 @@ def load_more_images():
     # Get media type filter (if any)
     media_type = request.args.get('media_type', 'all')
     
-    # Check if safe mode is enabled
-    safe_mode = request.args.get('safe_mode') == 'true' or request.cookies.get('safeMode') == 'true'
+    # Check if safe mode is enabled (from query param, cookie, or config default)
+    if request.args.get('safe_mode') == 'true':
+        safe_mode = True
+    else:
+        safe_mode_cookie = request.cookies.get('safeMode')
+        if safe_mode_cookie is not None:
+            safe_mode = safe_mode_cookie == 'true'
+        else:
+            # First visit - use config default
+            safe_mode = CONFIG.get('SAFE_MODE_DEFAULT', False)
     
     # Filter images by selected subfolder (RECURSIVE - same as gallery page)
     filtered_images = image_list
@@ -865,12 +891,10 @@ def delete_image(filename):
 
 @app.route('/flag_nsfw/<path:filename>', methods=['POST'])
 def flag_nsfw(filename):
-    """Move a file to NSFW subfolder"""
+    """Move a file to NSFW subfolder - no admin required"""
     global image_list
     
-    # Check permissions
-    if not can_delete():
-        return jsonify({'success': False, 'error': 'Permission denied. Admin access required.'}), 403
+    # No permission check - anyone can flag content
     
     # Build file path
     file_path = os.path.join(CONFIG['IMAGE_FOLDER'], filename)
@@ -907,12 +931,10 @@ def flag_nsfw(filename):
 
 @app.route('/unflag_nsfw/<path:filename>', methods=['POST'])
 def unflag_nsfw(filename):
-    """Move a file from NSFW subfolder back to parent folder"""
+    """Move a file from NSFW subfolder back to parent folder - no admin required"""
     global image_list
     
-    # Check permissions
-    if not can_delete():
-        return jsonify({'success': False, 'error': 'Permission denied. Admin access required.'}), 403
+    # No permission check - anyone can unflag content
     
     # Build file path
     file_path = os.path.join(CONFIG['IMAGE_FOLDER'], filename)
