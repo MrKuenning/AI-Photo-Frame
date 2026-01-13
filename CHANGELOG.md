@@ -4,6 +4,22 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-01-13]
+
+### Added
+- **Draggable video scrubber**<br>
+  Added a draggable thumb/dot to the video progress bar for easier scrubbing. Thumb appears on hover, scales up while dragging, and supports both mouse and touch events for mobile.
+
+---
+
+## [2026-01-12]
+
+### Added
+- **Folder Only view toggle**<br>
+  Added a toggle button in the gallery toolbar to switch between recursive view (shows all subfolder content) and folder-only view (shows only images in the current folder). Useful for browsing parent folders without seeing masked NSFW subfolder content.
+
+---
+
 ## [2026-01-10]
 
 ### Added

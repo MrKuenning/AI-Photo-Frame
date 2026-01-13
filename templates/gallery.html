@@ -60,6 +60,13 @@
             {% if child_folders %}
             <div class="child-folders-inline">
                 <span class="child-folder-indicator">└</span>
+                <!-- Folder Only Toggle -->
+                <a href="{{ url_for('gallery', subfolder=selected_subfolder, recursive='false' if recursive else 'true') }}"
+                    class="folder-link subfolder-btn {{ 'active' if not recursive else '' }}"
+                    title="{{ 'Switch to Recursive View' if not recursive else 'Switch to Folder Only View' }}">
+                    <i class="bi {{ 'bi-folder-x' if not recursive else 'bi-folder-check' }}"></i>
+                    {{ 'Recursive' if not recursive else 'Folder Only' }}
+                </a>
                 {% for child in child_folders %}
                 <a href="{{ url_for('gallery', subfolder=selected_subfolder + '/' + child) }}"
                     class="folder-link subfolder-btn">
@@ -96,6 +103,7 @@
                         {% if selected_subfolder %}
                         <input type="hidden" name="subfolder" value="{{ selected_subfolder }}">
                         {% endif %}
+                        <input type="hidden" name="recursive" value="{{ 'true' if recursive else 'false' }}">
                         <button type="submit" class="btn btn-primary">Search</button>
                     </div>
                 </form>

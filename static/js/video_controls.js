@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="video-progress-container">
                     <div class="video-progress-bar">
                         <div class="video-progress-fill"></div>
+                        <div class="video-progress-thumb"></div>
                     </div>
                 </div>
                 <button class="video-btn video-stepfwd-btn" title="Step Forward">
@@ -93,6 +94,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const nativeFullscreenBtn = controls.querySelector('.video-native-fullscreen-btn');
         const progressContainer = controls.querySelector('.video-progress-container');
         const progressFill = controls.querySelector('.video-progress-fill');
+        const progressThumb = controls.querySelector('.video-progress-thumb');
         const timeDisplay = controls.querySelector('.video-time');
 
         // Frame step amount (approximate - 1/30th of a second for 30fps video)
@@ -286,11 +288,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 saveFrameBtn.querySelector('i').className = 'bi bi-camera-fill';
             }
         });
-        // Progress bar
+        // Progress bar update
         video.addEventListener('timeupdate', () => {
-            if (video.duration) {
+            if (video.duration && !isDragging) {
                 const percent = (video.currentTime / video.duration) * 100;
                 progressFill.style.width = percent + '%';
+                progressThumb.style.left = percent + '%';
                 timeDisplay.textContent = formatTime(video.currentTime) + ' / ' + formatTime(video.duration);
             }
         });
@@ -299,13 +302,51 @@ document.addEventListener('DOMContentLoaded', function () {
             timeDisplay.textContent = '0:00 / ' + formatTime(video.duration);
         });
 
-        // Seek on progress bar click
-        progressContainer.addEventListener('click', (e) => {
-            e.stopPropagation();
+        // Draggable progress bar with scrubber thumb
+        let isDragging = false;
+
+        function seekToPosition(e) {
             const rect = progressContainer.getBoundingClientRect();
-            const percent = (e.clientX - rect.left) / rect.width;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let percent = (clientX - rect.left) / rect.width;
+            percent = Math.max(0, Math.min(1, percent)); // Clamp 0-1
             video.currentTime = percent * video.duration;
-        });
+            progressFill.style.width = (percent * 100) + '%';
+            progressThumb.style.left = (percent * 100) + '%';
+            timeDisplay.textContent = formatTime(video.currentTime) + ' / ' + formatTime(video.duration);
+        }
+
+        function startDrag(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            isDragging = true;
+            video.pause();
+            progressContainer.classList.add('dragging');
+            seekToPosition(e);
+        }
+
+        function onDrag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            seekToPosition(e);
+        }
+
+        function stopDrag() {
+            if (isDragging) {
+                isDragging = false;
+                progressContainer.classList.remove('dragging');
+            }
+        }
+
+        // Mouse events
+        progressContainer.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', onDrag);
+        document.addEventListener('mouseup', stopDrag);
+
+        // Touch events for mobile
+        progressContainer.addEventListener('touchstart', startDrag, { passive: false });
+        document.addEventListener('touchmove', onDrag, { passive: false });
+        document.addEventListener('touchend', stopDrag);
 
         // Initial state
         if (video.autoplay || !video.paused) {

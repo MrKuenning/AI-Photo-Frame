@@ -513,6 +513,17 @@ def index():
         # Limit initial load for performance (only most recent files)
         max_initial = CONFIG['MAX_INITIAL_LOAD']
         sidebar_images = filtered_images[:max_initial]
+
+        # Parse breadcrumb path (split by / for nested folders)
+        breadcrumb_parts = selected_subfolder.split('/') if selected_subfolder else []
+        breadcrumbs = []
+        current_path = ''
+        for part in breadcrumb_parts:
+            if current_path:
+                current_path += '/' + part
+            else:
+                current_path = part
+            breadcrumbs.append({'name': part, 'path': current_path})
         
         return render_template('index.html', 
                               latest_image=current_latest_image,
@@ -568,14 +579,23 @@ def gallery():
             # First visit - use config default
             safe_mode = CONFIG.get('SAFE_MODE_DEFAULT', False)
         
-        # Filter images by selected subfolder (RECURSIVE - shows all images in folder and subfolders)
+        # Get recursive flag (default True)
+        recursive = request.args.get('recursive', 'true') == 'true'
+        
+        # Filter images by selected subfolder
         filtered_images = image_list
         if selected_subfolder:
             # Normalize to forward slashes for consistent comparison
             selected_subfolder_normalized = selected_subfolder.replace('\\', '/')
-            # Show ALL images within the selected folder and any nested subfolders
-            filtered_images = [img for img in image_list 
-                             if img.get('subfolder', '').replace('\\', '/').startswith(selected_subfolder_normalized)]
+            
+            if recursive:
+                # Show ALL images within the selected folder and any nested subfolders
+                filtered_images = [img for img in image_list 
+                                 if img.get('subfolder', '').replace('\\', '/').startswith(selected_subfolder_normalized)]
+            else:
+                # Show ONLY images in the selected folder (exact match)
+                filtered_images = [img for img in image_list 
+                                 if img.get('subfolder', '').replace('\\', '/') == selected_subfolder_normalized]
         
         # Filter by search query if provided
         if search_query:
@@ -678,7 +698,8 @@ def gallery():
                               config=CONFIG,
                               safe_mode=safe_mode,
                               media_type=media_type,
-                              total_images=len(filtered_images))
+                              total_images=len(filtered_images),
+                              recursive=recursive)
 
 
 @app.route('/load_more_images')
@@ -700,6 +721,9 @@ def load_more_images():
     # Get selected subfolder (if any)
     selected_subfolder = request.args.get('subfolder', '')
     
+    # Get recursive flag (default True)
+    recursive = request.args.get('recursive', 'true') == 'true'
+    
     # Get search query (if any)
     search_query = request.args.get('search', '')
     
@@ -717,14 +741,20 @@ def load_more_images():
             # First visit - use config default
             safe_mode = CONFIG.get('SAFE_MODE_DEFAULT', False)
     
-    # Filter images by selected subfolder (RECURSIVE - same as gallery page)
+    # Filter images by selected subfolder
     filtered_images = image_list
     if selected_subfolder:
         # Normalize to forward slashes for consistent comparison
         selected_subfolder_normalized = selected_subfolder.replace('\\', '/')
-        # Show ALL images within the selected folder and any nested subfolders
-        filtered_images = [img for img in image_list 
-                         if img.get('subfolder', '').replace('\\', '/').startswith(selected_subfolder_normalized)]
+        
+        if recursive:
+            # Show ALL images within the selected folder and any nested subfolders
+            filtered_images = [img for img in image_list 
+                             if img.get('subfolder', '').replace('\\', '/').startswith(selected_subfolder_normalized)]
+        else:
+            # Show ONLY images in the selected folder (exact match)
+            filtered_images = [img for img in image_list 
+                             if img.get('subfolder', '').replace('\\', '/') == selected_subfolder_normalized]
     
     # Filter by search query if provided
     if search_query:
@@ -747,7 +777,7 @@ def load_more_images():
     # Debug log for infinite scroll issues
     print("=" * 80)
     print(f"[LOAD MORE] offset={offset}, filtered_count={len(filtered_images)}, safe_mode={safe_mode}")
-    print(f"[LOAD MORE] subfolder='{selected_subfolder}', media_type='{media_type}'")
+    print(f"[LOAD MORE] subfolder='{selected_subfolder}', media_type='{media_type}', recursive={recursive}")
     print(f"[LOAD MORE] batch will be [{offset}:{offset + batch_size}]")
     print("=" * 80)
     

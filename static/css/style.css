@@ -720,8 +720,9 @@ video::-webkit-media-controls-panel {
     height: 4px;
     background: rgba(255, 255, 255, 0.3);
     border-radius: 2px;
-    overflow: hidden;
+    overflow: visible;
     transition: height var(--transition-fast);
+    position: relative;
 }
 
 .video-progress-container:hover .video-progress-bar {
@@ -733,6 +734,30 @@ video::-webkit-media-controls-panel {
     background: var(--color-accent-primary);
     border-radius: 2px;
     transition: width 0.1s linear;
+}
+
+.video-progress-thumb {
+    position: absolute;
+    top: 50%;
+    left: 0%;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+    pointer-events: none;
+}
+
+.video-progress-container:hover .video-progress-thumb,
+.video-progress-container.dragging .video-progress-thumb {
+    opacity: 1;
+}
+
+.video-progress-container.dragging .video-progress-thumb {
+    transform: translate(-50%, -50%) scale(1.2);
 }
 
 .video-time {

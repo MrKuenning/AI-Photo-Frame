@@ -73,6 +73,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 queryString += `&media_type=${encodeURIComponent(mediaType)}`;
             }
 
+            // Add recursive parameter if present
+            const recursive = urlParams.get('recursive');
+            if (recursive !== null) {
+                queryString += `&recursive=${recursive}`;
+            }
+
             // Add safe mode parameter if enabled
             const safeMode = document.cookie.includes('safeMode=true');
             if (safeMode) {
