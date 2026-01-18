@@ -307,6 +307,22 @@ def is_in_nsfw_folder(file_path: str) -> bool:
     return 'nsfw' in path_parts
 
 
+def is_in_safe_folder(file_path: str) -> bool:
+    """Check if file is in a SAFE folder (marked safe by user, skip scanning)"""
+    path_parts = file_path.replace('\\', '/').lower().split('/')
+    return 'safe' in path_parts
+
+
+def should_skip_scanning(file_path: str) -> bool:
+    """
+    Check if file should be skipped for content scanning.
+    
+    Files in NSFW folders are already flagged.
+    Files in SAFE folders are marked safe by user to prevent false positives.
+    """
+    return is_in_nsfw_folder(file_path) or is_in_safe_folder(file_path)
+
+
 def scan_folder_batch(
     folder_path: str, 
     batch_size: int = 50,
@@ -330,8 +346,8 @@ def scan_folder_batch(
     files_to_scan = []
     
     for root, dirs, files in os.walk(folder_path):
-        # Skip NSFW folders
-        if is_in_nsfw_folder(root):
+        # Skip NSFW and SAFE folders
+        if should_skip_scanning(root):
             continue
             
         for filename in files:
@@ -391,8 +407,8 @@ def scan_single_file(file_path: str, metadata: Optional[Dict[str, Any]] = None) 
     Returns:
         True if file was moved, False otherwise
     """
-    # Skip if already in NSFW folder
-    if is_in_nsfw_folder(file_path):
+    # Skip if already in NSFW folder or in SAFE folder
+    if should_skip_scanning(file_path):
         return False
     
     # Scan content

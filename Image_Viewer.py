@@ -402,8 +402,8 @@ class ImageChangeHandler(FileSystemEventHandler):
         if not event.is_directory and event.src_path.lower().endswith(self.MEDIA_EXTENSIONS):
             print(f"New media detected: {event.src_path}")
             
-            # Content Scan: Check if enabled and file is NOT already in NSFW folder
-            if content_scan_enabled and not content_scanner.is_in_nsfw_folder(event.src_path):
+            # Content Scan: Check if enabled and file is NOT already in NSFW or SAFE folder
+            if content_scan_enabled and not content_scanner.should_skip_scanning(event.src_path):
                 try:
                     # Get metadata for keyword check
                     metadata = get_image_metadata(event.src_path)
@@ -413,7 +413,7 @@ class ImageChangeHandler(FileSystemEventHandler):
                 except Exception as e:
                     print(f"[ContentScan] ❌ Error scanning: {e}")
             elif content_scan_enabled:
-                print(f"[ContentScan] ⏭️ Skipping file already in NSFW folder")
+                print(f"[ContentScan] ⏭️ Skipping file in NSFW or SAFE folder")
             
             # Run scan in background thread to avoid blocking
             threading.Thread(target=scan_images, daemon=True).start()
