@@ -313,20 +313,36 @@ def is_in_safe_folder(file_path: str) -> bool:
     return 'safe' in path_parts
 
 
-def should_skip_scanning(file_path: str) -> bool:
+def is_in_archive_folder(file_path: str) -> bool:
+    """Check if file is in an Archive folder"""
+    path_parts = file_path.replace('\\', '/').lower().split('/')
+    return 'archive' in path_parts
+
+
+def should_skip_scanning(file_path: str, skip_archive: bool = False) -> bool:
     """
     Check if file should be skipped for content scanning.
     
     Files in NSFW folders are already flagged.
     Files in SAFE folders are marked safe by user to prevent false positives.
+    Files in Archive folders are skipped during full scans (skip_archive=True).
+    
+    Args:
+        file_path: Path to file to check
+        skip_archive: If True, also skip files in Archive folders (for full scans)
     """
-    return is_in_nsfw_folder(file_path) or is_in_safe_folder(file_path)
+    if is_in_nsfw_folder(file_path) or is_in_safe_folder(file_path):
+        return True
+    if skip_archive and is_in_archive_folder(file_path):
+        return True
+    return False
 
 
 def scan_folder_batch(
     folder_path: str, 
     batch_size: int = 50,
-    get_metadata_func=None
+    get_metadata_func=None,
+    skip_archive: bool = False
 ) -> Generator[Dict[str, Any], None, None]:
     """
     Scan folder for NSFW content in batches.
@@ -335,19 +351,20 @@ def scan_folder_batch(
         folder_path: Path to folder to scan
         batch_size: Number of files to process per batch
         get_metadata_func: Function to get metadata for a file
+        skip_archive: If True, skip files in Archive folders (for full scans)
         
     Yields:
         Progress dict: {'processed': int, 'total': int, 'moved': int, 'current': str}
     """
-    # Collect all media files (not in NSFW folders)
+    # Collect all media files (not in NSFW/SAFE folders, optionally skip Archive)
     image_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
     video_extensions = ('.mp4', '.webm', '.mov', '.avi', '.mkv')
     media_extensions = image_extensions + video_extensions
     files_to_scan = []
     
     for root, dirs, files in os.walk(folder_path):
-        # Skip NSFW and SAFE folders
-        if should_skip_scanning(root):
+        # Skip NSFW, SAFE, and optionally Archive folders
+        if should_skip_scanning(root, skip_archive=skip_archive):
             continue
             
         for filename in files:

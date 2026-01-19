@@ -20,6 +20,7 @@
     <script src="{{ url_for('static', filename='js/thumbnail_click.js') }}"></script>
     {% endif %}
     <script src="{{ url_for('static', filename='js/nsfw_filter.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/archive_filter.js') }}"></script>
     <script src="{{ url_for('static', filename='js/sidebar_toggle.js') }}"></script>
     {% if request.endpoint != 'index' %}
     <script src="{{ url_for('static', filename='js/image_size_toggle.js') }}"></script>
@@ -86,6 +87,72 @@
                                 Cancel
                             </button>
                             <button type="submit" class="btn btn-warning flex-grow-1">
+                                <i class="bi bi-unlock-fill me-2"></i>Unlock
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Scan Unlock Modal -->
+    <div id="content-scan-unlock-modal" class="modal" tabindex="-1" style="display: none;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content"
+                style="background: var(--color-bg-tertiary); border: 1px solid var(--color-border);">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title"><i class="bi bi-shield-exclamation me-2"></i>Unlock Content Scan</h5>
+                    <button type="button" class="btn-close btn-close-white"
+                        onclick="hideContentScanUnlockModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Enter the passphrase to toggle Content Scan.</p>
+                    <form onsubmit="handleContentScanUnlock(event); return false;">
+                        <div class="mb-3">
+                            <input type="password" class="form-control" id="content-scan-passphrase"
+                                placeholder="Content scan passphrase" autocomplete="off" required>
+                        </div>
+                        <div id="content-scan-unlock-error" class="alert alert-danger" style="display: none;"></div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-secondary flex-grow-1"
+                                onclick="hideContentScanUnlockModal()">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn btn-warning flex-grow-1">
+                                <i class="bi bi-unlock-fill me-2"></i>Unlock
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Archive View Unlock Modal -->
+    <div id="archive-view-unlock-modal" class="modal" tabindex="-1" style="display: none;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content"
+                style="background: var(--color-bg-tertiary); border: 1px solid var(--color-border);">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title"><i class="bi bi-archive-fill me-2"></i>Unlock Archive View</h5>
+                    <button type="button" class="btn-close btn-close-white"
+                        onclick="hideArchiveViewUnlockModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Enter the passphrase to toggle Archive View.</p>
+                    <form onsubmit="handleArchiveViewUnlock(event); return false;">
+                        <div class="mb-3">
+                            <input type="password" class="form-control" id="archive-view-passphrase"
+                                placeholder="Archive view passphrase" autocomplete="off" required>
+                        </div>
+                        <div id="archive-view-unlock-error" class="alert alert-danger" style="display: none;"></div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-secondary flex-grow-1"
+                                onclick="hideArchiveViewUnlockModal()">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn btn-secondary flex-grow-1">
                                 <i class="bi bi-unlock-fill me-2"></i>Unlock
                             </button>
                         </div>
@@ -169,6 +236,13 @@
                             <input class="form-check-input" type="checkbox" id="content-scan-toggle">
                             <label class="form-check-label" for="content-scan-toggle"
                                 title="Auto-scan new images for NSFW content">Content Scan</label>
+                        </div>
+
+                        <!-- Archive View Toggle -->
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="archive-view-toggle">
+                            <label class="form-check-label" for="archive-view-toggle"
+                                title="Show/hide Archive folder content">Archive View</label>
                         </div>
 
                         <!-- Refresh Button -->

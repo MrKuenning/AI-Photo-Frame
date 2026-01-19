@@ -159,5 +159,113 @@ document.addEventListener('DOMContentLoaded', function () {
         socket.on('scan_progress', function (data) {
             updateProgress(data);
         });
+        socket.on('archive_progress', function (data) {
+            updateArchiveProgress(data);
+        });
+    }
+
+    // Archive Button functionality
+    const archiveBtn = document.getElementById('archive-btn');
+
+    if (archiveBtn) {
+        archiveBtn.addEventListener('click', function () {
+            // Strong confirmation for destructive operation
+            if (!confirm('⚠️ ARCHIVE ALL CONTENT?\n\nThis will move ALL folders and files from the Output directory into the Archive folder.\n\nThis operation cannot be easily undone.\n\nContinue?')) {
+                return;
+            }
+
+            // Double confirm
+            if (!confirm('Are you SURE? This will reorganize your entire Output folder.')) {
+                return;
+            }
+
+            // Disable button and show progress
+            archiveBtn.disabled = true;
+            archiveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Archiving...';
+
+            if (scanProgressContainer) {
+                scanProgressContainer.style.display = 'block';
+            }
+
+            // Start archive
+            fetch('/archive', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('[Archive] Archive started');
+                        // Poll for progress
+                        pollArchiveProgress();
+                    } else {
+                        alert('Error starting archive: ' + (data.error || 'Unknown error'));
+                        resetArchiveButton();
+                    }
+                })
+                .catch(error => {
+                    console.error('[Archive] Error starting archive:', error);
+                    alert('Error starting archive');
+                    resetArchiveButton();
+                });
+        });
+    }
+
+    function pollArchiveProgress() {
+        fetch('/archive_status')
+            .then(response => response.json())
+            .then(data => {
+                updateArchiveProgress(data);
+
+                if (!data.complete) {
+                    // Continue polling
+                    setTimeout(pollArchiveProgress, 500);
+                } else {
+                    // Archive complete
+                    setTimeout(() => {
+                        resetArchiveButton();
+                        alert(`Archive complete!\n\nMoved: ${data.moved} of ${data.total} items to Archive folder.`);
+                        // Reload page to refresh gallery
+                        window.location.reload();
+                    }, 500);
+                }
+            })
+            .catch(error => {
+                console.error('[Archive] Error getting status:', error);
+                resetArchiveButton();
+            });
+    }
+
+    function updateArchiveProgress(data) {
+        if (scanProgressBar && data.total > 0) {
+            const percent = Math.round((data.processed / data.total) * 100);
+            scanProgressBar.style.width = percent + '%';
+            scanProgressBar.setAttribute('aria-valuenow', percent);
+            // Change color to indicate archive operation
+            scanProgressBar.classList.remove('bg-warning');
+            scanProgressBar.classList.add('bg-secondary');
+        }
+
+        if (scanProgressText) {
+            scanProgressText.textContent = `Archived ${data.processed} of ${data.total} (${data.current || ''})`;
+        }
+    }
+
+    function resetArchiveButton() {
+        if (archiveBtn) {
+            archiveBtn.disabled = false;
+            archiveBtn.innerHTML = '<i class="bi bi-archive"></i> Archive';
+        }
+
+        if (scanProgressContainer) {
+            scanProgressContainer.style.display = 'none';
+        }
+
+        if (scanProgressBar) {
+            scanProgressBar.style.width = '0%';
+            // Reset color
+            scanProgressBar.classList.remove('bg-secondary');
+            scanProgressBar.classList.add('bg-warning');
+        }
     }
 });

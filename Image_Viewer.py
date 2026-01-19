@@ -1,4 +1,5 @@
 import os
+import shutil
 import threading
 import configparser
 import time
@@ -45,11 +46,22 @@ def load_config():
         'NSFW_LABELS': ['FEMALE_BREAST_EXPOSED', 'FEMALE_GENITALIA_EXPOSED', 'MALE_GENITALIA_EXPOSED', 'BUTTOCKS_EXPOSED', 'ANUS_EXPOSED'],
         'SAFE_MODE_DEFAULT': False,
         'CONTENT_SCAN_DEFAULT': False,
+        'ARCHIVE_VIEW_DEFAULT': False,
         'AUTH_ENABLED': False,
         'USER_PASSPHRASE': '',
         'ADMIN_PASSPHRASE': '',
-        'SAFEMODE_LOCK_ENABLED': False,
-        'SAFEMODE_PASSPHRASE': ''
+        # Action permission levels
+        'DELETE_LEVEL': 'guest',
+        'FLAG_LEVEL': 'guest',
+        'ARCHIVE_LEVEL': 'guest',
+        # Toggle permission levels
+        'TOGGLE_CONTENT_SCAN_LEVEL': 'guest',
+        'TOGGLE_ARCHIVE_VIEW_LEVEL': 'guest',
+        'TOGGLE_SAFEMODE_VIEW_LEVEL': 'guest',
+        # Toggle passphrase overrides
+        'TOGGLE_CONTENT_SCAN_PASSPHRASE': '',
+        'TOGGLE_ARCHIVE_PASSPHRASE': '',
+        'TOGGLE_SAFEMODE_PASSPHRASE': ''
     }
     
     # Try to read config file
@@ -86,13 +98,27 @@ def load_config():
             # Parse toggle defaults
             default_config['SAFE_MODE_DEFAULT'] = config.getboolean('App', 'SAFE_MODE_DEFAULT', fallback=False)
             default_config['CONTENT_SCAN_DEFAULT'] = config.getboolean('App', 'CONTENT_SCAN_DEFAULT', fallback=False)
+            default_config['ARCHIVE_VIEW_DEFAULT'] = config.getboolean('App', 'ARCHIVE_VIEW_DEFAULT', fallback=False)
             
             # Parse authentication settings
             default_config['AUTH_ENABLED'] = config.getboolean('App', 'AUTH_ENABLED', fallback=False)
             default_config['USER_PASSPHRASE'] = config.get('App', 'USER_PASSPHRASE', fallback='').strip()
             default_config['ADMIN_PASSPHRASE'] = config.get('App', 'ADMIN_PASSPHRASE', fallback='').strip()
-            default_config['SAFEMODE_LOCK_ENABLED'] = config.getboolean('App', 'SAFEMODE_LOCK_ENABLED', fallback=False)
-            default_config['SAFEMODE_PASSPHRASE'] = config.get('App', 'SAFEMODE_PASSPHRASE', fallback='').strip()
+            
+            # Parse action permission levels (guest, user, admin)
+            default_config['DELETE_LEVEL'] = config.get('App', 'DELETE_LEVEL', fallback='guest').strip().lower()
+            default_config['FLAG_LEVEL'] = config.get('App', 'FLAG_LEVEL', fallback='guest').strip().lower()
+            default_config['ARCHIVE_LEVEL'] = config.get('App', 'ARCHIVE_LEVEL', fallback='guest').strip().lower()
+            
+            # Parse toggle permission levels
+            default_config['TOGGLE_CONTENT_SCAN_LEVEL'] = config.get('App', 'TOGGLE_CONTENT_SCAN_LEVEL', fallback='guest').strip().lower()
+            default_config['TOGGLE_ARCHIVE_VIEW_LEVEL'] = config.get('App', 'TOGGLE_ARCHIVE_VIEW_LEVEL', fallback='guest').strip().lower()
+            default_config['TOGGLE_SAFEMODE_VIEW_LEVEL'] = config.get('App', 'TOGGLE_SAFEMODE_VIEW_LEVEL', fallback='guest').strip().lower()
+            
+            # Parse toggle passphrase overrides
+            default_config['TOGGLE_CONTENT_SCAN_PASSPHRASE'] = config.get('App', 'TOGGLE_CONTENT_SCAN_PASSPHRASE', fallback='').strip()
+            default_config['TOGGLE_ARCHIVE_PASSPHRASE'] = config.get('App', 'TOGGLE_ARCHIVE_PASSPHRASE', fallback='').strip()
+            default_config['TOGGLE_SAFEMODE_PASSPHRASE'] = config.get('App', 'TOGGLE_SAFEMODE_PASSPHRASE', fallback='').strip()
         
         print(f"[OK] Loaded configuration from {config_path}")
     else:
@@ -177,26 +203,93 @@ def is_admin() -> bool:
     session = get_session()
     return session.get('role') == 'admin'
 
-def can_delete() -> bool:
-    """Check if user can delete/flag files"""
-    # If no admin passphrase set, everyone can delete
-    if not CONFIG.get('ADMIN_PASSPHRASE', ''):
-        return True
-    # If admin passphrase set, only admins can delete
-    return is_admin()
 
-def can_toggle_safemode() -> bool:
-    """Check if user can freely toggle safe mode"""
-    # Admins can always toggle
+def get_user_level() -> str:
+    """Get current user's permission level: 'guest', 'user', or 'admin'"""
+    session = get_session()
+    role = session.get('role')
+    if role == 'admin':
+        return 'admin'
+    elif role == 'user':
+        return 'user'
+    else:
+        return 'guest'
+
+
+def has_permission(required_level: str) -> bool:
+    """
+    Check if current user meets the required permission level.
+    Permission hierarchy: guest < user < admin
+    """
+    user_level = get_user_level()
+    required = required_level.lower()
+    
+    # Guest level - anyone can access
+    if required == 'guest':
+        return True
+    
+    # User level - user or admin can access
+    if required == 'user':
+        return user_level in ('user', 'admin')
+    
+    # Admin level - only admin can access
+    if required == 'admin':
+        return user_level == 'admin'
+    
+    # Unknown level - default to admin only
+    return user_level == 'admin'
+
+
+def can_delete() -> bool:
+    """Check if user can delete files based on DELETE_LEVEL config"""
+    return has_permission(CONFIG.get('DELETE_LEVEL', 'guest'))
+
+
+def can_flag() -> bool:
+    """Check if user can flag files as NSFW based on FLAG_LEVEL config"""
+    return has_permission(CONFIG.get('FLAG_LEVEL', 'guest'))
+
+
+def can_archive() -> bool:
+    """Check if user can archive files based on ARCHIVE_LEVEL config"""
+    return has_permission(CONFIG.get('ARCHIVE_LEVEL', 'guest'))
+
+
+def can_toggle_content_scan() -> bool:
+    """Check if user can toggle content scan based on TOGGLE_CONTENT_SCAN_LEVEL config"""
+    # Admin can always toggle
     if is_admin():
         return True
-    # If safemode lock not enabled, anyone can toggle
-    if not CONFIG.get('SAFEMODE_LOCK_ENABLED', False):
+    # Check permission level
+    if has_permission(CONFIG.get('TOGGLE_CONTENT_SCAN_LEVEL', 'guest')):
         return True
-    # If no safemode passphrase set, anyone can toggle
-    if not CONFIG.get('SAFEMODE_PASSPHRASE', ''):
+    # Check if user has unlocked this toggle via passphrase
+    session = get_session()
+    return session.get('content_scan_unlocked', False)
+
+
+def can_toggle_archive_view() -> bool:
+    """Check if user can toggle archive view based on TOGGLE_ARCHIVE_VIEW_LEVEL config"""
+    # Admin can always toggle
+    if is_admin():
         return True
-    # Check if user has unlocked safemode this session
+    # Check permission level
+    if has_permission(CONFIG.get('TOGGLE_ARCHIVE_VIEW_LEVEL', 'guest')):
+        return True
+    # Check if user has unlocked this toggle via passphrase
+    session = get_session()
+    return session.get('archive_view_unlocked', False)
+
+
+def can_toggle_safemode() -> bool:
+    """Check if user can toggle safe mode based on TOGGLE_SAFEMODE_VIEW_LEVEL config"""
+    # Admin can always toggle
+    if is_admin():
+        return True
+    # Check permission level
+    if has_permission(CONFIG.get('TOGGLE_SAFEMODE_VIEW_LEVEL', 'guest')):
+        return True
+    # Check if user has unlocked this toggle via passphrase
     session = get_session()
     return session.get('safemode_unlocked', False)
 
@@ -481,6 +574,13 @@ def index():
             # First visit - use config default
             safe_mode = CONFIG.get('SAFE_MODE_DEFAULT', False)
         
+        # Check if archive view is enabled (cookie or config default)
+        archive_view_cookie = request.cookies.get('archiveView')
+        if archive_view_cookie is not None:
+            archive_view = archive_view_cookie == 'true'
+        else:
+            archive_view = CONFIG.get('ARCHIVE_VIEW_DEFAULT', False)
+        
         # Filter images by top-level subfolder if selected
         filtered_images = image_list
         if selected_subfolder:
@@ -491,6 +591,11 @@ def index():
             filtered_images = [img for img in filtered_images if img.get('media_type') == 'image']
         elif media_type == 'videos':
             filtered_images = [img for img in filtered_images if img.get('media_type') == 'video']
+        
+        # Filter out archive content if archive view is disabled
+        if not archive_view:
+            filtered_images = [img for img in filtered_images 
+                             if 'archive' not in img.get('subfolder', '').lower().split('/')]
         
         # Filter out NSFW content if safe mode is enabled
         if safe_mode:
@@ -579,6 +684,13 @@ def gallery():
             # First visit - use config default
             safe_mode = CONFIG.get('SAFE_MODE_DEFAULT', False)
         
+        # Check if archive view is enabled (cookie or config default)
+        archive_view_cookie = request.cookies.get('archiveView')
+        if archive_view_cookie is not None:
+            archive_view = archive_view_cookie == 'true'
+        else:
+            archive_view = CONFIG.get('ARCHIVE_VIEW_DEFAULT', False)
+        
         # Get recursive flag (default True)
         recursive = request.args.get('recursive', 'true') == 'true'
         
@@ -610,6 +722,11 @@ def gallery():
             filtered_images = [img for img in filtered_images if img.get('media_type') == 'image']
         elif media_type == 'videos':
             filtered_images = [img for img in filtered_images if img.get('media_type') == 'video']
+        
+        # Filter out archive content if archive view is disabled
+        if not archive_view:
+            filtered_images = [img for img in filtered_images 
+                             if 'archive' not in img.get('subfolder', '').lower().split('/')]
         
         # Filter out NSFW content if safe mode is enabled
         if safe_mode:
@@ -741,6 +858,13 @@ def load_more_images():
             # First visit - use config default
             safe_mode = CONFIG.get('SAFE_MODE_DEFAULT', False)
     
+    # Check if archive view is enabled (cookie or config default)
+    archive_view_cookie = request.cookies.get('archiveView')
+    if archive_view_cookie is not None:
+        archive_view = archive_view_cookie == 'true'
+    else:
+        archive_view = CONFIG.get('ARCHIVE_VIEW_DEFAULT', False)
+    
     # Filter images by selected subfolder
     filtered_images = image_list
     if selected_subfolder:
@@ -769,6 +893,11 @@ def load_more_images():
         filtered_images = [img for img in filtered_images if img.get('media_type') == 'image']
     elif media_type == 'videos':
         filtered_images = [img for img in filtered_images if img.get('media_type') == 'video']
+    
+    # Filter out archive content if archive view is disabled
+    if not archive_view:
+        filtered_images = [img for img in filtered_images 
+                         if 'archive' not in img.get('subfolder', '').lower().split('/')]
     
     # Filter out NSFW content if safe mode is enabled
     if safe_mode:
@@ -921,10 +1050,12 @@ def delete_image(filename):
 
 @app.route('/flag_nsfw/<path:filename>', methods=['POST'])
 def flag_nsfw(filename):
-    """Move a file to NSFW subfolder - no admin required"""
+    """Move a file to NSFW subfolder"""
     global image_list
     
-    # No permission check - anyone can flag content
+    # Check permissions
+    if not can_flag():
+        return jsonify({'success': False, 'error': 'Permission denied. Insufficient access level.'}), 403
     
     # Build file path
     file_path = os.path.join(CONFIG['IMAGE_FOLDER'], filename)
@@ -961,10 +1092,12 @@ def flag_nsfw(filename):
 
 @app.route('/unflag_nsfw/<path:filename>', methods=['POST'])
 def unflag_nsfw(filename):
-    """Move a file from NSFW subfolder back to parent folder - no admin required"""
+    """Move a file from NSFW subfolder back to parent folder"""
     global image_list
     
-    # No permission check - anyone can unflag content
+    # Check permissions
+    if not can_flag():
+        return jsonify({'success': False, 'error': 'Permission denied. Insufficient access level.'}), 403
     
     # Build file path
     file_path = os.path.join(CONFIG['IMAGE_FOLDER'], filename)
@@ -1203,10 +1336,68 @@ def auth_status():
         'authenticated': is_authenticated(),
         'role': session.get('role'),
         'can_delete': can_delete(),
+        'can_flag': can_flag(),
+        'can_archive': can_archive(),
+        # Toggle permissions
+        'can_toggle_content_scan': can_toggle_content_scan(),
+        'can_toggle_archive_view': can_toggle_archive_view(),
         'can_toggle_safemode': can_toggle_safemode(),
+        # Unlock states
+        'content_scan_unlocked': session.get('content_scan_unlocked', False),
+        'archive_view_unlocked': session.get('archive_view_unlocked', False),
         'safemode_unlocked': session.get('safemode_unlocked', False),
-        'safemode_lock_enabled': CONFIG.get('SAFEMODE_LOCK_ENABLED', False) and bool(CONFIG.get('SAFEMODE_PASSPHRASE', ''))
+        # Defaults
+        'safe_mode_default': CONFIG.get('SAFE_MODE_DEFAULT', False),
+        'archive_view_default': CONFIG.get('ARCHIVE_VIEW_DEFAULT', False),
+        'content_scan_default': CONFIG.get('CONTENT_SCAN_DEFAULT', False)
     })
+
+
+@app.route('/unlock_content_scan', methods=['POST'])
+def unlock_content_scan():
+    """Unlock content scan toggle for this session"""
+    data = request.get_json() or {}
+    passphrase = data.get('passphrase', '').strip()
+    
+    config_pass = CONFIG.get('TOGGLE_CONTENT_SCAN_PASSPHRASE', '')
+    
+    if not config_pass:
+        return jsonify({'success': False, 'error': 'No content scan passphrase configured'})
+    
+    if passphrase == config_pass:
+        session = get_session()
+        session['content_scan_unlocked'] = True
+        session_token = session_serializer.dumps(session)
+        
+        response = make_response(jsonify({'success': True}))
+        response.set_cookie('auth_session', session_token, httponly=True, samesite='Lax')
+        return response
+    else:
+        return jsonify({'success': False, 'error': 'Invalid passphrase'})
+
+
+@app.route('/unlock_archive_view', methods=['POST'])
+def unlock_archive_view():
+    """Unlock archive view toggle for this session"""
+    data = request.get_json() or {}
+    passphrase = data.get('passphrase', '').strip()
+    
+    config_pass = CONFIG.get('TOGGLE_ARCHIVE_PASSPHRASE', '')
+    
+    if not config_pass:
+        return jsonify({'success': False, 'error': 'No archive view passphrase configured'})
+    
+    if passphrase == config_pass:
+        session = get_session()
+        session['archive_view_unlocked'] = True
+        session_token = session_serializer.dumps(session)
+        
+        response = make_response(jsonify({'success': True}))
+        response.set_cookie('auth_session', session_token, httponly=True, samesite='Lax')
+        return response
+    else:
+        return jsonify({'success': False, 'error': 'Invalid passphrase'})
+
 
 @app.route('/unlock_safemode', methods=['POST'])
 def unlock_safemode():
@@ -1214,13 +1405,12 @@ def unlock_safemode():
     data = request.get_json() or {}
     passphrase = data.get('passphrase', '').strip()
     
-    safemode_pass = CONFIG.get('SAFEMODE_PASSPHRASE', '')
+    config_pass = CONFIG.get('TOGGLE_SAFEMODE_PASSPHRASE', '')
     
-    if not safemode_pass:
+    if not config_pass:
         return jsonify({'success': False, 'error': 'No safemode passphrase configured'})
     
-    if passphrase == safemode_pass:
-        # Update session to mark safemode as unlocked
+    if passphrase == config_pass:
         session = get_session()
         session['safemode_unlocked'] = True
         session_token = session_serializer.dumps(session)
@@ -1294,7 +1484,9 @@ def scan_folder():
     def run_scan():
         global content_scan_progress
         final_progress = {'processed': 0, 'total': 0, 'moved': 0, 'complete': True}
-        for progress in content_scanner.scan_folder_batch(folder_path, batch_size=20, get_metadata_func=get_image_metadata):
+        # Skip Archive folder during full scans (no subfolder), allow targeted scans within Archive
+        skip_archive = not subfolder
+        for progress in content_scanner.scan_folder_batch(folder_path, batch_size=20, get_metadata_func=get_image_metadata, skip_archive=skip_archive):
             content_scan_progress = progress
             final_progress = progress  # Keep track of the last progress
             socketio.emit('scan_progress', progress)
@@ -1319,6 +1511,189 @@ def scan_status():
     """Get current scan progress"""
     if content_scan_progress:
         return jsonify(content_scan_progress)
+    return jsonify({'complete': True, 'processed': 0, 'total': 0, 'moved': 0})
+
+
+# Archive operation progress
+archive_progress = None
+
+
+@app.route('/archive', methods=['POST'])
+def archive_files():
+    """Move all content from Output folder (except Archive) into Archive folder"""
+    global archive_progress
+    
+    # Check permissions
+    if not can_archive():
+        return jsonify({'success': False, 'error': 'Permission denied. Insufficient access level.'}), 403
+    
+    image_folder = CONFIG['IMAGE_FOLDER']
+    archive_folder = os.path.join(image_folder, 'Archive')
+    
+    # Create Archive folder if it doesn't exist
+    os.makedirs(archive_folder, exist_ok=True)
+    
+    # Get all top-level folders except Archive
+    folders_to_archive = []
+    files_to_archive = []
+    
+    for item in os.listdir(image_folder):
+        item_path = os.path.join(image_folder, item)
+        if item.lower() == 'archive':
+            continue
+        if os.path.isdir(item_path):
+            folders_to_archive.append(item)
+        elif os.path.isfile(item_path):
+            # Also handle loose files in root
+            files_to_archive.append(item)
+    
+    total_items = len(folders_to_archive) + len(files_to_archive)
+    
+    if total_items == 0:
+        return jsonify({'success': False, 'error': 'No content to archive'})
+    
+    # Set initial progress
+    archive_progress = {
+        'processed': 0,
+        'total': total_items,
+        'moved': 0,
+        'current': 'Starting archive...',
+        'complete': False
+    }
+    
+    def run_archive():
+        global archive_progress
+        processed = 0
+        moved = 0
+        
+        # Move folders
+        for folder_name in folders_to_archive:
+            src_path = os.path.join(image_folder, folder_name)
+            dest_path = os.path.join(archive_folder, folder_name)
+            
+            print(f"[Archive] Processing folder: {folder_name}")
+            print(f"[Archive]   src: {src_path}")
+            print(f"[Archive]   dst: {dest_path}")
+            
+            archive_progress = {
+                'processed': processed,
+                'total': total_items,
+                'moved': moved,
+                'current': f'Moving {folder_name}...',
+                'complete': False
+            }
+            socketio.emit('archive_progress', archive_progress)
+            
+            try:
+                if os.path.exists(dest_path):
+                    print(f"[Archive]   Destination exists, merging...")
+                    # Merge into existing folder recursively
+                    def merge_folders(src, dst):
+                        """Recursively merge src into dst"""
+                        # Ensure destination exists
+                        os.makedirs(dst, exist_ok=True)
+                        
+                        items = os.listdir(src)
+                        if not items:
+                            print(f"[Archive]   Empty folder: {src}")
+                            return
+                            
+                        for item in items:
+                            s = os.path.join(src, item)
+                            d = os.path.join(dst, item)
+                            try:
+                                if os.path.isdir(s):
+                                    if os.path.exists(d):
+                                        # Recursively merge subdirectories
+                                        merge_folders(s, d)
+                                    else:
+                                        print(f"[Archive]   Moving dir: {item}")
+                                        shutil.move(s, d)
+                                else:
+                                    if os.path.exists(d):
+                                        # Handle collision - append timestamp
+                                        base, ext = os.path.splitext(item)
+                                        timestamp = int(time.time())
+                                        d = os.path.join(dst, f"{base}_{timestamp}{ext}")
+                                    print(f"[Archive]   Moving file: {item}")
+                                    shutil.move(s, d)
+                            except Exception as item_err:
+                                print(f"[Archive]   ❌ Error moving {item}: {item_err}")
+                    
+                    merge_folders(src_path, dest_path)
+                    # Remove source folder tree (may have empty dirs left)
+                    try:
+                        shutil.rmtree(src_path)
+                        print(f"[Archive]   Removed source folder")
+                    except Exception as rm_err:
+                        print(f"[Archive]   ⚠️ Could not remove source: {rm_err}")
+                else:
+                    print(f"[Archive]   Moving entire folder...")
+                    shutil.move(src_path, dest_path)
+                moved += 1
+                print(f"[Archive] ✅ Moved folder: {folder_name}")
+            except Exception as e:
+                print(f"[Archive] ❌ Error moving folder {folder_name}: {e}")
+                import traceback
+                traceback.print_exc()
+            
+            processed += 1
+        
+        # Move loose files
+        for file_name in files_to_archive:
+            src_path = os.path.join(image_folder, file_name)
+            dest_path = os.path.join(archive_folder, file_name)
+            
+            archive_progress = {
+                'processed': processed,
+                'total': total_items,
+                'moved': moved,
+                'current': f'Moving {file_name}...',
+                'complete': False
+            }
+            socketio.emit('archive_progress', archive_progress)
+            
+            try:
+                if os.path.exists(dest_path):
+                    base, ext = os.path.splitext(file_name)
+                    import time as time_mod
+                    timestamp = int(time_mod.time())
+                    dest_path = os.path.join(archive_folder, f"{base}_{timestamp}{ext}")
+                shutil.move(src_path, dest_path)
+                moved += 1
+                print(f"[Archive] 📦 Moved file: {file_name}")
+            except Exception as e:
+                print(f"[Archive] ❌ Error moving file {file_name}: {e}")
+            
+            processed += 1
+        
+        # Final progress
+        archive_progress = {
+            'processed': processed,
+            'total': total_items,
+            'moved': moved,
+            'current': 'Complete',
+            'complete': True
+        }
+        socketio.emit('archive_progress', archive_progress)
+        
+        # Rescan image list after moving files
+        scan_images()
+        print(f"[Archive] ✅ Archive complete! Moved {moved} items.")
+    
+    threading.Thread(target=run_archive, daemon=True).start()
+    
+    return jsonify({
+        'success': True,
+        'message': f'Archiving {total_items} items...'
+    })
+
+
+@app.route('/archive_status')
+def archive_status():
+    """Get current archive progress"""
+    if archive_progress:
+        return jsonify(archive_progress)
     return jsonify({'complete': True, 'processed': 0, 'total': 0, 'moved': 0})
 
 

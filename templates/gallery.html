@@ -93,6 +93,15 @@
                 <span class="btn-text">Scan Content</span>
             </button>
 
+            <!-- Archive Button (only show at root) -->
+            {% if not selected_subfolder %}
+            <button id="archive-btn" class="btn btn-sm btn-outline-secondary"
+                title="Move all content to Archive folder">
+                <i class="bi bi-archive"></i>
+                <span class="btn-text">Archive</span>
+            </button>
+            {% endif %}
+
             <!-- Search Bar -->
             <div class="control-group search-group">
                 <form action="{{ url_for('gallery') }}" method="get" id="search-form">

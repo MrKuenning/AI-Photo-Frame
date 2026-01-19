@@ -10,9 +10,14 @@ window.authState = {
     authenticated: false,
     role: null,
     canDelete: true,
+    canFlag: true,
+    canArchive: true,
+    canToggleContentScan: true,
+    canToggleArchiveView: true,
     canToggleSafemode: true,
-    safemodeUnlocked: false,
-    safemodeLockEnabled: false
+    contentScanUnlocked: false,
+    archiveViewUnlocked: false,
+    safemodeUnlocked: false
 };
 
 // Check authentication status
@@ -26,9 +31,14 @@ async function checkAuthStatus() {
             authenticated: data.authenticated,
             role: data.role,
             canDelete: data.can_delete,
+            canFlag: data.can_flag,
+            canArchive: data.can_archive,
+            canToggleContentScan: data.can_toggle_content_scan,
+            canToggleArchiveView: data.can_toggle_archive_view,
             canToggleSafemode: data.can_toggle_safemode,
-            safemodeUnlocked: data.safemode_unlocked,
-            safemodeLockEnabled: data.safemode_lock_enabled
+            contentScanUnlocked: data.content_scan_unlocked,
+            archiveViewUnlocked: data.archive_view_unlocked,
+            safemodeUnlocked: data.safemode_unlocked
         };
 
         // Show login modal and overlay if auth required and not authenticated
@@ -266,7 +276,7 @@ function setupSafemodeIntercept() {
             'Locked:', window.authState.safemodeLockEnabled,
             'Can toggle:', window.authState.canToggleSafemode);
 
-        if (turningOff && window.authState.safemodeLockEnabled && !window.authState.canToggleSafemode) {
+        if (turningOff && !window.authState.canToggleSafemode) {
             e.preventDefault();
             e.stopPropagation();
             // Revert the checkbox back to checked (safe mode on)
@@ -324,3 +334,143 @@ window.updateUIPermissions = updateUIPermissions;
 window.interceptSafemodeToggle = interceptSafemodeToggle;
 window.showAuthOverlay = showAuthOverlay;
 window.hideAuthOverlay = hideAuthOverlay;
+
+// Content Scan unlock modal handlers
+function showContentScanUnlockModal() {
+    const modal = document.getElementById('content-scan-unlock-modal');
+    if (modal) {
+        modal.classList.add('show');
+        modal.style.display = 'block';
+        document.body.classList.add('modal-open');
+        const input = modal.querySelector('#content-scan-passphrase');
+        if (input) setTimeout(() => input.focus(), 100);
+    }
+}
+
+function hideContentScanUnlockModal() {
+    const modal = document.getElementById('content-scan-unlock-modal');
+    if (modal) {
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+        document.body.classList.remove('modal-open');
+    }
+}
+
+async function handleContentScanUnlock(event) {
+    if (event) event.preventDefault();
+    const passphraseInput = document.getElementById('content-scan-passphrase');
+    const errorDiv = document.getElementById('content-scan-unlock-error');
+    const passphrase = passphraseInput ? passphraseInput.value : '';
+
+    try {
+        const response = await fetch('/unlock_content_scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ passphrase })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            hideContentScanUnlockModal();
+            window.authState.contentScanUnlocked = true;
+            window.authState.canToggleContentScan = true;
+            if (passphraseInput) passphraseInput.value = '';
+            if (errorDiv) errorDiv.style.display = 'none';
+            // Toggle content scan
+            const toggle = document.getElementById('content-scan-toggle');
+            if (toggle) {
+                toggle.checked = !toggle.checked;
+                toggle.dispatchEvent(new Event('change'));
+            }
+        } else {
+            if (errorDiv) {
+                errorDiv.textContent = data.error || 'Invalid passphrase';
+                errorDiv.style.display = 'block';
+            }
+            if (passphraseInput) {
+                passphraseInput.value = '';
+                passphraseInput.focus();
+            }
+        }
+    } catch (error) {
+        console.error('Content scan unlock error:', error);
+        if (errorDiv) {
+            errorDiv.textContent = 'Connection error. Please try again.';
+            errorDiv.style.display = 'block';
+        }
+    }
+}
+
+window.showContentScanUnlockModal = showContentScanUnlockModal;
+window.hideContentScanUnlockModal = hideContentScanUnlockModal;
+window.handleContentScanUnlock = handleContentScanUnlock;
+
+// Archive View unlock modal handlers
+function showArchiveViewUnlockModal() {
+    const modal = document.getElementById('archive-view-unlock-modal');
+    if (modal) {
+        modal.classList.add('show');
+        modal.style.display = 'block';
+        document.body.classList.add('modal-open');
+        const input = modal.querySelector('#archive-view-passphrase');
+        if (input) setTimeout(() => input.focus(), 100);
+    }
+}
+
+function hideArchiveViewUnlockModal() {
+    const modal = document.getElementById('archive-view-unlock-modal');
+    if (modal) {
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+        document.body.classList.remove('modal-open');
+    }
+}
+
+async function handleArchiveViewUnlock(event) {
+    if (event) event.preventDefault();
+    const passphraseInput = document.getElementById('archive-view-passphrase');
+    const errorDiv = document.getElementById('archive-view-unlock-error');
+    const passphrase = passphraseInput ? passphraseInput.value : '';
+
+    try {
+        const response = await fetch('/unlock_archive_view', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ passphrase })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            hideArchiveViewUnlockModal();
+            window.authState.archiveViewUnlocked = true;
+            window.authState.canToggleArchiveView = true;
+            if (passphraseInput) passphraseInput.value = '';
+            if (errorDiv) errorDiv.style.display = 'none';
+            // Toggle archive view
+            const toggle = document.getElementById('archive-view-toggle');
+            if (toggle) {
+                toggle.checked = !toggle.checked;
+                toggle.dispatchEvent(new Event('change'));
+            }
+        } else {
+            if (errorDiv) {
+                errorDiv.textContent = data.error || 'Invalid passphrase';
+                errorDiv.style.display = 'block';
+            }
+            if (passphraseInput) {
+                passphraseInput.value = '';
+                passphraseInput.focus();
+            }
+        }
+    } catch (error) {
+        console.error('Archive view unlock error:', error);
+        if (errorDiv) {
+            errorDiv.textContent = 'Connection error. Please try again.';
+            errorDiv.style.display = 'block';
+        }
+    }
+}
+
+window.showArchiveViewUnlockModal = showArchiveViewUnlockModal;
+window.hideArchiveViewUnlockModal = hideArchiveViewUnlockModal;
+window.handleArchiveViewUnlock = handleArchiveViewUnlock;
