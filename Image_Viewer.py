@@ -61,7 +61,9 @@ def load_config():
         # Toggle passphrase overrides
         'TOGGLE_CONTENT_SCAN_PASSPHRASE': '',
         'TOGGLE_ARCHIVE_PASSPHRASE': '',
-        'TOGGLE_SAFEMODE_PASSPHRASE': ''
+        'TOGGLE_SAFEMODE_PASSPHRASE': '',
+        # Content scan settings
+        'CONTENT_SCAN_OFFSET': 0
     }
     
     # Try to read config file
@@ -119,6 +121,9 @@ def load_config():
             default_config['TOGGLE_CONTENT_SCAN_PASSPHRASE'] = config.get('App', 'TOGGLE_CONTENT_SCAN_PASSPHRASE', fallback='').strip()
             default_config['TOGGLE_ARCHIVE_PASSPHRASE'] = config.get('App', 'TOGGLE_ARCHIVE_PASSPHRASE', fallback='').strip()
             default_config['TOGGLE_SAFEMODE_PASSPHRASE'] = config.get('App', 'TOGGLE_SAFEMODE_PASSPHRASE', fallback='').strip()
+            
+            # Parse content scan settings
+            default_config['CONTENT_SCAN_OFFSET'] = config.getint('App', 'CONTENT_SCAN_OFFSET', fallback=0)
         
         print(f"[OK] Loaded configuration from {config_path}")
     else:
@@ -491,20 +496,42 @@ class ImageChangeHandler(FileSystemEventHandler):
     # Supported file extensions
     MEDIA_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v')
     
+    # Pending scan queue for offset feature
+    _pending_scan_queue = []
+    
     def on_created(self, event):
         if not event.is_directory and event.src_path.lower().endswith(self.MEDIA_EXTENSIONS):
             print(f"New media detected: {event.src_path}")
             
             # Content Scan: Check if enabled and file is NOT already in NSFW or SAFE folder
             if content_scan_enabled and not content_scanner.should_skip_scanning(event.src_path):
-                try:
-                    # Get metadata for keyword check
-                    metadata = get_image_metadata(event.src_path)
-                    # Scan and move if NSFW detected
-                    if content_scanner.scan_single_file(event.src_path, metadata):
-                        print(f"[ContentScan] 📁 File moved to NSFW folder")
-                except Exception as e:
-                    print(f"[ContentScan] ❌ Error scanning: {e}")
+                offset = CONFIG.get('CONTENT_SCAN_OFFSET', 0)
+                
+                if offset <= 0:
+                    # No offset - scan immediately
+                    try:
+                        metadata = get_image_metadata(event.src_path)
+                        if content_scanner.scan_single_file(event.src_path, metadata):
+                            print(f"[ContentScan] 📁 File moved to NSFW folder")
+                    except Exception as e:
+                        print(f"[ContentScan] ❌ Error scanning: {e}")
+                else:
+                    # Add current file to queue and scan oldest if queue is full
+                    self._pending_scan_queue.append(event.src_path)
+                    print(f"[ContentScan] ⏳ Added to queue (offset={offset}, queue={len(self._pending_scan_queue)})")
+                    
+                    # When queue exceeds offset, scan the oldest file
+                    while len(self._pending_scan_queue) > offset:
+                        file_to_scan = self._pending_scan_queue.pop(0)
+                        if os.path.exists(file_to_scan) and not content_scanner.should_skip_scanning(file_to_scan):
+                            try:
+                                metadata = get_image_metadata(file_to_scan)
+                                if content_scanner.scan_single_file(file_to_scan, metadata):
+                                    print(f"[ContentScan] 📁 File moved to NSFW folder: {file_to_scan}")
+                            except Exception as e:
+                                print(f"[ContentScan] ❌ Error scanning: {e}")
+                        else:
+                            print(f"[ContentScan] ⏭️ Skipping (not found or in NSFW/SAFE): {file_to_scan}")
             elif content_scan_enabled:
                 print(f"[ContentScan] ⏭️ Skipping file in NSFW or SAFE folder")
             
