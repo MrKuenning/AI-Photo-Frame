@@ -17,6 +17,9 @@ All notable changes to the AI Photo Frame application will be documented in this
 - **NSFW Folders Setting**<br>
   Added a new input field in Safe Mode settings to configure which folder names trigger the Safe Mode filter (e.g., "NSFW", "Adult").
 
+- **Settings GUI**<br>
+  New admin-only settings modal (gear icon) to configure all app settings via the UI. Includes sections for global settings, startup defaults, authentication, action permissions, toggle permissions, Safe Mode, and Content Scan.
+
 - **Clarified Descriptions**<br>
   Updated tooltips and descriptions for Safe Mode and Content Scan to explicitly state which data sources (keywords, folders, labels) each uses. Added "Content Scan Only" badge to NudeNet labels.
 
