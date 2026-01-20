@@ -4,6 +4,33 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-01-19]
+
+### Changed
+- **Settings Modal Reorganization**<br>
+  Restructured settings into distinct "Safe Mode" and "Content Scan" sections to clarify their different purposes. Moved NSFW Keywords and folders to Safe Mode, and NudeNet Labels to Content Scan.
+
+- **Restrictive Default Toggles**<br>
+  Renamed "Archive View" to "Hide Archive" and inverted the logic so that all default toggles (Safe Mode, Content Scan, Hide Archive) are restrictive when enabled.
+
+### Added
+- **NSFW Folders Setting**<br>
+  Added a new input field in Safe Mode settings to configure which folder names trigger the Safe Mode filter (e.g., "NSFW", "Adult").
+
+- **Clarified Descriptions**<br>
+  Updated tooltips and descriptions for Safe Mode and Content Scan to explicitly state which data sources (keywords, folders, labels) each uses. Added "Content Scan Only" badge to NudeNet labels.
+
+- **Hide Archive Toggle**<br>
+  New navbar toggle to hide/show archived content. Respects permission levels and optional passphrase protection like other toggles.
+
+- **Toggle Permissions & Passphrases**<br>
+  Each navbar toggle (Safe Mode, Content Scan, Hide Archive) can now have its own permission level (guest/user/admin) and override passphrase configured in settings. Unauthorized users see a lock modal prompting for passphrase.
+
+- **Content Scan Offset Setting**<br>
+  New setting to skip N newest images before scanning. Useful when generating images that aren't immediately complete (e.g., batch generation).
+
+---
+
 ## [2026-01-13]
 
 ### Added

@@ -46,7 +46,7 @@ def load_config():
         'NSFW_LABELS': ['FEMALE_BREAST_EXPOSED', 'FEMALE_GENITALIA_EXPOSED', 'MALE_GENITALIA_EXPOSED', 'BUTTOCKS_EXPOSED', 'ANUS_EXPOSED'],
         'SAFE_MODE_DEFAULT': False,
         'CONTENT_SCAN_DEFAULT': False,
-        'ARCHIVE_VIEW_DEFAULT': False,
+        'HIDE_ARCHIVE_DEFAULT': False,
         'AUTH_ENABLED': False,
         'USER_PASSPHRASE': '',
         'ADMIN_PASSPHRASE': '',
@@ -56,7 +56,7 @@ def load_config():
         'ARCHIVE_LEVEL': 'guest',
         # Toggle permission levels
         'TOGGLE_CONTENT_SCAN_LEVEL': 'guest',
-        'TOGGLE_ARCHIVE_VIEW_LEVEL': 'guest',
+        'TOGGLE_HIDE_ARCHIVE_LEVEL': 'guest',
         'TOGGLE_SAFEMODE_VIEW_LEVEL': 'guest',
         # Toggle passphrase overrides
         'TOGGLE_CONTENT_SCAN_PASSPHRASE': '',
@@ -100,7 +100,7 @@ def load_config():
             # Parse toggle defaults
             default_config['SAFE_MODE_DEFAULT'] = config.getboolean('App', 'SAFE_MODE_DEFAULT', fallback=False)
             default_config['CONTENT_SCAN_DEFAULT'] = config.getboolean('App', 'CONTENT_SCAN_DEFAULT', fallback=False)
-            default_config['ARCHIVE_VIEW_DEFAULT'] = config.getboolean('App', 'ARCHIVE_VIEW_DEFAULT', fallback=False)
+            default_config['HIDE_ARCHIVE_DEFAULT'] = config.getboolean('App', 'HIDE_ARCHIVE_DEFAULT', fallback=False)
             
             # Parse authentication settings
             default_config['AUTH_ENABLED'] = config.getboolean('App', 'AUTH_ENABLED', fallback=False)
@@ -114,7 +114,7 @@ def load_config():
             
             # Parse toggle permission levels
             default_config['TOGGLE_CONTENT_SCAN_LEVEL'] = config.get('App', 'TOGGLE_CONTENT_SCAN_LEVEL', fallback='guest').strip().lower()
-            default_config['TOGGLE_ARCHIVE_VIEW_LEVEL'] = config.get('App', 'TOGGLE_ARCHIVE_VIEW_LEVEL', fallback='guest').strip().lower()
+            default_config['TOGGLE_HIDE_ARCHIVE_LEVEL'] = config.get('App', 'TOGGLE_HIDE_ARCHIVE_LEVEL', fallback='guest').strip().lower()
             default_config['TOGGLE_SAFEMODE_VIEW_LEVEL'] = config.get('App', 'TOGGLE_SAFEMODE_VIEW_LEVEL', fallback='guest').strip().lower()
             
             # Parse toggle passphrase overrides
@@ -204,7 +204,9 @@ def is_authenticated() -> bool:
     return session.get('role') in ('user', 'admin')
 
 def is_admin() -> bool:
-    """Check if user is logged in as admin"""
+    """Check if user is logged in as admin (or auth disabled = everyone is admin)"""
+    if not is_auth_required():
+        return True  # When auth is disabled, treat everyone as admin
     session = get_session()
     return session.get('role') == 'admin'
 
@@ -273,17 +275,17 @@ def can_toggle_content_scan() -> bool:
     return session.get('content_scan_unlocked', False)
 
 
-def can_toggle_archive_view() -> bool:
-    """Check if user can toggle archive view based on TOGGLE_ARCHIVE_VIEW_LEVEL config"""
+def can_toggle_hide_archive() -> bool:
+    """Check if user can toggle archive view based on TOGGLE_HIDE_ARCHIVE_LEVEL config"""
     # Admin can always toggle
     if is_admin():
         return True
     # Check permission level
-    if has_permission(CONFIG.get('TOGGLE_ARCHIVE_VIEW_LEVEL', 'guest')):
+    if has_permission(CONFIG.get('TOGGLE_HIDE_ARCHIVE_LEVEL', 'guest')):
         return True
     # Check if user has unlocked this toggle via passphrase
     session = get_session()
-    return session.get('archive_view_unlocked', False)
+    return session.get('hide_archive_unlocked', False)
 
 
 def can_toggle_safemode() -> bool:
@@ -602,11 +604,11 @@ def index():
             safe_mode = CONFIG.get('SAFE_MODE_DEFAULT', False)
         
         # Check if archive view is enabled (cookie or config default)
-        archive_view_cookie = request.cookies.get('archiveView')
-        if archive_view_cookie is not None:
-            archive_view = archive_view_cookie == 'true'
+        hide_archive_cookie = request.cookies.get('hideArchive')
+        if hide_archive_cookie is not None:
+            hide_archive = hide_archive_cookie == 'true'
         else:
-            archive_view = CONFIG.get('ARCHIVE_VIEW_DEFAULT', False)
+            hide_archive = CONFIG.get('HIDE_ARCHIVE_DEFAULT', False)
         
         # Filter images by top-level subfolder if selected
         filtered_images = image_list
@@ -619,8 +621,8 @@ def index():
         elif media_type == 'videos':
             filtered_images = [img for img in filtered_images if img.get('media_type') == 'video']
         
-        # Filter out archive content if archive view is disabled
-        if not archive_view:
+        # Filter out archive content if hide archive is enabled
+        if hide_archive:
             filtered_images = [img for img in filtered_images 
                              if 'archive' not in img.get('subfolder', '').lower().split('/')]
         
@@ -712,11 +714,11 @@ def gallery():
             safe_mode = CONFIG.get('SAFE_MODE_DEFAULT', False)
         
         # Check if archive view is enabled (cookie or config default)
-        archive_view_cookie = request.cookies.get('archiveView')
-        if archive_view_cookie is not None:
-            archive_view = archive_view_cookie == 'true'
+        hide_archive_cookie = request.cookies.get('hideArchive')
+        if hide_archive_cookie is not None:
+            hide_archive = hide_archive_cookie == 'true'
         else:
-            archive_view = CONFIG.get('ARCHIVE_VIEW_DEFAULT', False)
+            hide_archive = CONFIG.get('HIDE_ARCHIVE_DEFAULT', False)
         
         # Get recursive flag (default True)
         recursive = request.args.get('recursive', 'true') == 'true'
@@ -750,8 +752,8 @@ def gallery():
         elif media_type == 'videos':
             filtered_images = [img for img in filtered_images if img.get('media_type') == 'video']
         
-        # Filter out archive content if archive view is disabled
-        if not archive_view:
+        # Filter out archive content if hide archive is enabled
+        if hide_archive:
             filtered_images = [img for img in filtered_images 
                              if 'archive' not in img.get('subfolder', '').lower().split('/')]
         
@@ -886,11 +888,11 @@ def load_more_images():
             safe_mode = CONFIG.get('SAFE_MODE_DEFAULT', False)
     
     # Check if archive view is enabled (cookie or config default)
-    archive_view_cookie = request.cookies.get('archiveView')
-    if archive_view_cookie is not None:
-        archive_view = archive_view_cookie == 'true'
+    hide_archive_cookie = request.cookies.get('hideArchive')
+    if hide_archive_cookie is not None:
+        hide_archive = hide_archive_cookie == 'true'
     else:
-        archive_view = CONFIG.get('ARCHIVE_VIEW_DEFAULT', False)
+        hide_archive = CONFIG.get('HIDE_ARCHIVE_DEFAULT', False)
     
     # Filter images by selected subfolder
     filtered_images = image_list
@@ -921,8 +923,8 @@ def load_more_images():
     elif media_type == 'videos':
         filtered_images = [img for img in filtered_images if img.get('media_type') == 'video']
     
-    # Filter out archive content if archive view is disabled
-    if not archive_view:
+    # Filter out archive content if hide archive is enabled
+    if hide_archive:
         filtered_images = [img for img in filtered_images 
                          if 'archive' not in img.get('subfolder', '').lower().split('/')]
     
@@ -1367,15 +1369,15 @@ def auth_status():
         'can_archive': can_archive(),
         # Toggle permissions
         'can_toggle_content_scan': can_toggle_content_scan(),
-        'can_toggle_archive_view': can_toggle_archive_view(),
+        'can_toggle_hide_archive': can_toggle_hide_archive(),
         'can_toggle_safemode': can_toggle_safemode(),
         # Unlock states
         'content_scan_unlocked': session.get('content_scan_unlocked', False),
-        'archive_view_unlocked': session.get('archive_view_unlocked', False),
+        'hide_archive_unlocked': session.get('hide_archive_unlocked', False),
         'safemode_unlocked': session.get('safemode_unlocked', False),
         # Defaults
         'safe_mode_default': CONFIG.get('SAFE_MODE_DEFAULT', False),
-        'archive_view_default': CONFIG.get('ARCHIVE_VIEW_DEFAULT', False),
+        'HIDE_ARCHIVE_DEFAULT': CONFIG.get('HIDE_ARCHIVE_DEFAULT', False),
         'content_scan_default': CONFIG.get('CONTENT_SCAN_DEFAULT', False)
     })
 
@@ -1403,8 +1405,8 @@ def unlock_content_scan():
         return jsonify({'success': False, 'error': 'Invalid passphrase'})
 
 
-@app.route('/unlock_archive_view', methods=['POST'])
-def unlock_archive_view():
+@app.route('/unlock_hide_archive', methods=['POST'])
+def unlock_hide_archive():
     """Unlock archive view toggle for this session"""
     data = request.get_json() or {}
     passphrase = data.get('passphrase', '').strip()
@@ -1416,7 +1418,7 @@ def unlock_archive_view():
     
     if passphrase == config_pass:
         session = get_session()
-        session['archive_view_unlocked'] = True
+        session['hide_archive_unlocked'] = True
         session_token = session_serializer.dumps(session)
         
         response = make_response(jsonify({'success': True}))
@@ -1447,6 +1449,103 @@ def unlock_safemode():
         return response
     else:
         return jsonify({'success': False, 'error': 'Invalid passphrase'})
+
+
+# ============================================
+# Settings Routes
+# ============================================
+
+@app.route('/settings', methods=['GET'])
+def get_settings():
+    """Get current settings (admin only)"""
+    if not is_admin():
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    
+    # Return all editable settings
+    return jsonify({
+        'success': True,
+        'settings': {
+            # Global
+            'IMAGE_FOLDER': CONFIG.get('IMAGE_FOLDER', ''),
+            'MAX_INITIAL_LOAD': CONFIG.get('MAX_INITIAL_LOAD', 100),
+            # Startup Defaults
+            'SAFE_MODE_DEFAULT': CONFIG.get('SAFE_MODE_DEFAULT', False),
+            'CONTENT_SCAN_DEFAULT': CONFIG.get('CONTENT_SCAN_DEFAULT', False),
+            'HIDE_ARCHIVE_DEFAULT': CONFIG.get('HIDE_ARCHIVE_DEFAULT', False),
+            # Authentication
+            'AUTH_ENABLED': CONFIG.get('AUTH_ENABLED', False),
+            'USER_PASSPHRASE': CONFIG.get('USER_PASSPHRASE', ''),
+            'ADMIN_PASSPHRASE': CONFIG.get('ADMIN_PASSPHRASE', ''),
+            # Action Permission Levels
+            'DELETE_LEVEL': CONFIG.get('DELETE_LEVEL', 'guest'),
+            'FLAG_LEVEL': CONFIG.get('FLAG_LEVEL', 'guest'),
+            'ARCHIVE_LEVEL': CONFIG.get('ARCHIVE_LEVEL', 'guest'),
+            # Toggle Permission Levels
+            'TOGGLE_CONTENT_SCAN_LEVEL': CONFIG.get('TOGGLE_CONTENT_SCAN_LEVEL', 'guest'),
+            'TOGGLE_HIDE_ARCHIVE_LEVEL': CONFIG.get('TOGGLE_HIDE_ARCHIVE_LEVEL', 'guest'),
+            'TOGGLE_SAFEMODE_VIEW_LEVEL': CONFIG.get('TOGGLE_SAFEMODE_VIEW_LEVEL', 'guest'),
+            # Toggle Passphrases
+            'TOGGLE_CONTENT_SCAN_PASSPHRASE': CONFIG.get('TOGGLE_CONTENT_SCAN_PASSPHRASE', ''),
+            'TOGGLE_ARCHIVE_PASSPHRASE': CONFIG.get('TOGGLE_ARCHIVE_PASSPHRASE', ''),
+            'TOGGLE_SAFEMODE_PASSPHRASE': CONFIG.get('TOGGLE_SAFEMODE_PASSPHRASE', ''),
+            # Content Scan Settings
+            'CONTENT_SCAN_OFFSET': CONFIG.get('CONTENT_SCAN_OFFSET', 0),
+            'NUDITY_THRESHOLD': CONFIG.get('NUDITY_THRESHOLD', 0.5),
+            'NSFW_KEYWORDS': ', '.join(CONFIG.get('NSFW_KEYWORDS', [])),
+            'NSFW_FOLDERS': ', '.join(CONFIG.get('NSFW_FOLDERS', [])),
+            'NSFW_LABELS': ', '.join(CONFIG.get('NSFW_LABELS', []))
+        }
+    })
+
+
+@app.route('/settings', methods=['POST'])
+def save_settings():
+    """Save settings to config.ini (admin only)"""
+    if not is_admin():
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    
+    global CONFIG
+    data = request.get_json() or {}
+    settings = data.get('settings', {})
+    
+    try:
+        # Read existing config file
+        config = configparser.ConfigParser()
+        config_path = os.path.join(os.path.dirname(__file__), 'config.ini')
+        config.read(config_path)
+        
+        if 'App' not in config:
+            config['App'] = {}
+        
+        # Update settings
+        for key, value in settings.items():
+            if isinstance(value, bool):
+                config['App'][key] = 'true' if value else 'false'
+            elif isinstance(value, (int, float)):
+                config['App'][key] = str(value)
+            else:
+                config['App'][key] = str(value)
+        
+        # Write to file
+        with open(config_path, 'w') as f:
+            config.write(f)
+        
+        # Reload config
+        CONFIG = load_config()
+        
+        # Update content scanner with new settings
+        content_scanner.set_config(
+            CONFIG.get('NSFW_KEYWORDS', []),
+            CONFIG.get('NUDITY_THRESHOLD', 0.5),
+            CONFIG.get('NSFW_LABELS', [])
+        )
+        
+        print(f"[Settings] Saved {len(settings)} settings to config.ini")
+        return jsonify({'success': True, 'message': 'Settings saved successfully'})
+    
+    except Exception as e:
+        print(f"[Settings] Error saving settings: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ============================================

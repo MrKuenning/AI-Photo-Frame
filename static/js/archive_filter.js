@@ -1,64 +1,64 @@
 /**
- * Archive View Toggle
+ * Hide Archive Toggle
  * Shows/hides archive folder content, similar to Safe Mode filter.
  */
 document.addEventListener('DOMContentLoaded', function () {
-    const archiveToggle = document.getElementById('archive-view-toggle');
+    const archiveToggle = document.getElementById('hide-archive-toggle');
 
     if (archiveToggle) {
         // First check auth status to see if toggle requires permission
         fetch('/auth_status')
             .then(response => response.json())
             .then(authData => {
-                const canToggle = authData.can_toggle_archive_view;
+                const canToggle = authData.can_toggle_hide_archive;
 
                 if (!canToggle) {
                     // User doesn't have permission - set up intercept
-                    setupArchiveViewIntercept(archiveToggle);
+                    setuphideArchiveIntercept(archiveToggle);
                 }
 
-                initArchiveViewFromStorage();
+                inithideArchiveFromStorage();
             })
             .catch(() => {
-                initArchiveViewFromStorage();
+                inithideArchiveFromStorage();
             });
 
         // Listen for toggle changes
         archiveToggle.addEventListener('change', function () {
             const isChecked = this.checked;
-            localStorage.setItem('archiveView', isChecked);
-            applyArchiveViewFilter(isChecked);
+            localStorage.setItem('hideArchive', isChecked);
+            applyhideArchiveFilter(isChecked);
         });
     }
 
-    function initArchiveViewFromStorage() {
-        const savedArchiveView = localStorage.getItem('archiveView');
+    function inithideArchiveFromStorage() {
+        const savedhideArchive = localStorage.getItem('hideArchive');
 
-        if (savedArchiveView !== null) {
+        if (savedhideArchive !== null) {
             // Use saved preference
-            const archiveView = savedArchiveView === 'true';
-            archiveToggle.checked = archiveView;
-            applyArchiveViewFilter(archiveView);
+            const hideArchive = savedhideArchive === 'true';
+            archiveToggle.checked = hideArchive;
+            applyhideArchiveFilter(hideArchive);
         } else {
             // First visit - use config default
             fetch('/auth_status')
                 .then(response => response.json())
                 .then(data => {
-                    const defaultArchiveView = data.archive_view_default || false;
-                    archiveToggle.checked = defaultArchiveView;
-                    localStorage.setItem('archiveView', defaultArchiveView);
-                    applyArchiveViewFilter(defaultArchiveView);
+                    const defaulthideArchive = data.hide_archive_default || false;
+                    archiveToggle.checked = defaulthideArchive;
+                    localStorage.setItem('hideArchive', defaulthideArchive);
+                    applyhideArchiveFilter(defaulthideArchive);
                 });
         }
     }
 
-    function applyArchiveViewFilter(enabled) {
+    function applyhideArchiveFilter(enabled) {
         // Set cookie for server-side filtering
-        document.cookie = 'archiveView=' + enabled + '; path=/; max-age=31536000'; // 1 year
+        document.cookie = 'hideArchive=' + enabled + '; path=/; max-age=31536000'; // 1 year
 
         // Reload page to apply filter (archive content is filtered server-side)
         // Check if current filter state matches what we need
-        const currentCookie = document.cookie.includes('archiveView=' + enabled);
+        const currentCookie = document.cookie.includes('hideArchive=' + enabled);
         if (!currentCookie) {
             // Need to reload to apply the change
             setTimeout(() => {
@@ -69,16 +69,16 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /**
- * Set up intercept to require passphrase for archive view toggle
+ * Set up intercept to require passphrase for Hide Archive toggle
  */
-function setupArchiveViewIntercept(toggle) {
+function setuphideArchiveIntercept(toggle) {
     toggle.addEventListener('click', function (e) {
         // Only intercept when trying to enable (show archive content)
         if (!this.checked) {
             // Check if already unlocked
-            if (!window.authState?.archive_view_unlocked) {
+            if (!window.authState?.hide_archive_unlocked) {
                 e.preventDefault();
-                showArchiveViewUnlockModal();
+                showhideArchiveUnlockModal();
             }
         }
     });

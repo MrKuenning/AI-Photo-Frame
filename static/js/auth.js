@@ -13,10 +13,10 @@ window.authState = {
     canFlag: true,
     canArchive: true,
     canToggleContentScan: true,
-    canToggleArchiveView: true,
+    canToggleHideArchive: true,
     canToggleSafemode: true,
     contentScanUnlocked: false,
-    archiveViewUnlocked: false,
+    hideArchiveUnlocked: false,
     safemodeUnlocked: false
 };
 
@@ -34,10 +34,10 @@ async function checkAuthStatus() {
             canFlag: data.can_flag,
             canArchive: data.can_archive,
             canToggleContentScan: data.can_toggle_content_scan,
-            canToggleArchiveView: data.can_toggle_archive_view,
+            canToggleHideArchive: data.can_toggle_hide_archive,
             canToggleSafemode: data.can_toggle_safemode,
             contentScanUnlocked: data.content_scan_unlocked,
-            archiveViewUnlocked: data.archive_view_unlocked,
+            hideArchiveUnlocked: data.hide_archive_unlocked,
             safemodeUnlocked: data.safemode_unlocked
         };
 
@@ -406,7 +406,7 @@ window.hideContentScanUnlockModal = hideContentScanUnlockModal;
 window.handleContentScanUnlock = handleContentScanUnlock;
 
 // Archive View unlock modal handlers
-function showArchiveViewUnlockModal() {
+function showHideArchiveUnlockModal() {
     const modal = document.getElementById('archive-view-unlock-modal');
     if (modal) {
         modal.classList.add('show');
@@ -417,7 +417,7 @@ function showArchiveViewUnlockModal() {
     }
 }
 
-function hideArchiveViewUnlockModal() {
+function hideHideArchiveUnlockModal() {
     const modal = document.getElementById('archive-view-unlock-modal');
     if (modal) {
         modal.classList.remove('show');
@@ -426,14 +426,14 @@ function hideArchiveViewUnlockModal() {
     }
 }
 
-async function handleArchiveViewUnlock(event) {
+async function handleHideArchiveUnlock(event) {
     if (event) event.preventDefault();
     const passphraseInput = document.getElementById('archive-view-passphrase');
     const errorDiv = document.getElementById('archive-view-unlock-error');
     const passphrase = passphraseInput ? passphraseInput.value : '';
 
     try {
-        const response = await fetch('/unlock_archive_view', {
+        const response = await fetch('/unlock_hide_archive', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ passphrase })
@@ -441,9 +441,9 @@ async function handleArchiveViewUnlock(event) {
         const data = await response.json();
 
         if (data.success) {
-            hideArchiveViewUnlockModal();
-            window.authState.archiveViewUnlocked = true;
-            window.authState.canToggleArchiveView = true;
+            hideHideArchiveUnlockModal();
+            window.authState.hideArchiveUnlocked = true;
+            window.authState.canToggleHideArchive = true;
             if (passphraseInput) passphraseInput.value = '';
             if (errorDiv) errorDiv.style.display = 'none';
             // Toggle archive view
@@ -471,6 +471,6 @@ async function handleArchiveViewUnlock(event) {
     }
 }
 
-window.showArchiveViewUnlockModal = showArchiveViewUnlockModal;
-window.hideArchiveViewUnlockModal = hideArchiveViewUnlockModal;
-window.handleArchiveViewUnlock = handleArchiveViewUnlock;
+window.showHideArchiveUnlockModal = showHideArchiveUnlockModal;
+window.hideHideArchiveUnlockModal = hideHideArchiveUnlockModal;
+window.handleHideArchiveUnlock = handleHideArchiveUnlock;

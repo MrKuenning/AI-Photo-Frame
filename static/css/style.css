@@ -2585,3 +2585,89 @@ video::-webkit-media-controls-timeline {
 #login-modal .modal-dialog {
     z-index: 1051;
 }
+
+/* ==========================================
+   Settings Modal Theming
+   ========================================== */
+#settings-modal {
+    z-index: 1050;
+}
+
+#settings-modal .modal-dialog {
+    z-index: 1051;
+}
+
+/* Dark theme for form inputs */
+#settings-modal .form-control,
+#settings-modal .form-select,
+.modal .form-control,
+.modal .form-select {
+    background-color: var(--color-bg-secondary);
+    border-color: var(--color-border);
+    color: var(--color-text-primary);
+}
+
+#settings-modal .form-control:focus,
+#settings-modal .form-select:focus,
+.modal .form-control:focus,
+.modal .form-select:focus {
+    background-color: var(--color-bg-secondary);
+    border-color: var(--color-accent-primary);
+    color: var(--color-text-primary);
+    box-shadow: 0 0 0 0.2rem hsla(200, 85%, 55%, 0.25);
+}
+
+#settings-modal .form-control::placeholder,
+.modal .form-control::placeholder {
+    color: var(--color-text-muted);
+}
+
+/* Dark theme for select dropdown options */
+#settings-modal .form-select option,
+.modal .form-select option {
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+}
+
+/* Form labels */
+#settings-modal .form-label,
+.modal .form-label {
+    color: var(--color-text-primary);
+}
+
+/* Small/muted text */
+#settings-modal small.text-muted,
+.modal small.text-muted {
+    color: var(--color-text-muted) !important;
+}
+
+/* Textarea dark theme */
+#settings-modal textarea.form-control,
+.modal textarea.form-control {
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+}
+
+/* Cards inside settings */
+#settings-modal .card.bg-dark {
+    background-color: var(--color-bg-secondary) !important;
+    border-color: var(--color-border);
+}
+
+/* Range slider */
+#settings-modal .form-range {
+    background-color: transparent;
+}
+
+#settings-modal .form-range::-webkit-slider-track {
+    background: var(--color-surface);
+}
+
+#settings-modal .form-range::-webkit-slider-thumb {
+    background: var(--color-accent-primary);
+}
+
+/* Settings section headers */
+#settings-modal .settings-section h6 {
+    color: var(--color-accent-primary);
+}

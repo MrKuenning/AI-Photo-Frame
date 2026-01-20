@@ -30,6 +30,7 @@
     <script src="{{ url_for('static', filename='js/thumbnail_slider.js') }}"></script>
     <script src="{{ url_for('static', filename='js/content_scan.js') }}"></script>
     <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
     <!-- <script src="{{ url_for('static', filename='js/keyboard_nav.js') }}"></script> -->
 </head>
 
@@ -129,22 +130,22 @@
         </div>
     </div>
 
-    <!-- Archive View Unlock Modal -->
-    <div id="archive-view-unlock-modal" class="modal" tabindex="-1" style="display: none;">
+    <!-- Hide Archive Unlock Modal -->
+    <div id="hide-archive-unlock-modal" class="modal" tabindex="-1" style="display: none;">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content"
                 style="background: var(--color-bg-tertiary); border: 1px solid var(--color-border);">
                 <div class="modal-header border-0">
-                    <h5 class="modal-title"><i class="bi bi-archive-fill me-2"></i>Unlock Archive View</h5>
+                    <h5 class="modal-title"><i class="bi bi-archive-fill me-2"></i>Unlock Hide Archive</h5>
                     <button type="button" class="btn-close btn-close-white"
                         onclick="hideArchiveViewUnlockModal()"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted mb-3">Enter the passphrase to toggle Archive View.</p>
+                    <p class="text-muted mb-3">Enter the passphrase to toggle Hide Archive.</p>
                     <form onsubmit="handleArchiveViewUnlock(event); return false;">
                         <div class="mb-3">
                             <input type="password" class="form-control" id="archive-view-passphrase"
-                                placeholder="Archive view passphrase" autocomplete="off" required>
+                                placeholder="Hide Archive passphrase" autocomplete="off" required>
                         </div>
                         <div id="archive-view-unlock-error" class="alert alert-danger" style="display: none;"></div>
                         <div class="d-flex gap-2">
@@ -157,6 +158,439 @@
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal modal-lg" tabindex="-1" style="display: none;">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width: 700px;">
+            <div class="modal-content"
+                style="background: var(--color-bg-tertiary); border: 1px solid var(--color-border); max-height: 85vh;">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title"><i class="bi bi-gear-fill me-2"></i>Settings</h5>
+                    <button type="button" class="btn-close btn-close-white" onclick="hideSettingsModal()"></button>
+                </div>
+                <div class="modal-body" style="overflow-y: auto;">
+                    <form id="settings-form">
+
+                        <!-- Global Settings -->
+                        <div class="settings-section mb-4">
+                            <h6 class="text-primary border-bottom pb-2 mb-3">
+                                <i class="bi bi-folder-fill me-2"></i>Global Settings
+                            </h6>
+                            <div class="mb-3">
+                                <label class="form-label">Image Folder Path</label>
+                                <input type="text" class="form-control" id="setting-IMAGE_FOLDER"
+                                    placeholder="E:\AI\Output">
+                                <small class="text-muted">Path to the main image folder to monitor</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Max Initial Load</label>
+                                <input type="number" class="form-control" id="setting-MAX_INITIAL_LOAD" min="10"
+                                    max="500" value="100">
+                                <small class="text-muted">Maximum images to load on home page (rest load via
+                                    scroll)</small>
+                            </div>
+                        </div>
+
+                        <!-- Startup Defaults -->
+                        <div class="settings-section mb-4">
+                            <h6 class="text-primary border-bottom pb-2 mb-3">
+                                <i class="bi bi-power me-2"></i>Startup Defaults
+                            </h6>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="setting-SAFE_MODE_DEFAULT">
+                                <label class="form-check-label" for="setting-SAFE_MODE_DEFAULT">
+                                    Safe Mode <small class="text-muted">- Hide flagged/NSFW files</small>
+                                </label>
+                                <small class="text-muted d-block ms-4">Hides files in NSFW folders and files matching
+                                    NSFW keywords</small>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="setting-CONTENT_SCAN_DEFAULT">
+                                <label class="form-check-label" for="setting-CONTENT_SCAN_DEFAULT">
+                                    Content Scan <small class="text-muted">- Auto-detect & flag new files</small>
+                                </label>
+                                <small class="text-muted d-block ms-4">Scans new images using AI nudity detection and
+                                    keyword matching</small>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="setting-HIDE_ARCHIVE_DEFAULT">
+                                <label class="form-check-label" for="setting-HIDE_ARCHIVE_DEFAULT">
+                                    Hide Archive <small class="text-muted">- Hide archived content</small>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Authentication -->
+                        <div class="settings-section mb-4">
+                            <h6 class="text-primary border-bottom pb-2 mb-3">
+                                <i class="bi bi-shield-lock-fill me-2"></i>Authentication
+                            </h6>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="setting-AUTH_ENABLED">
+                                <label class="form-check-label" for="setting-AUTH_ENABLED">
+                                    Enable Authentication <small class="text-muted">- Require login</small>
+                                </label>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">User Passphrase</label>
+                                    <input type="password" class="form-control" id="setting-USER_PASSPHRASE">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Admin Passphrase</label>
+                                    <input type="password" class="form-control" id="setting-ADMIN_PASSPHRASE">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Permissions -->
+                        <div class="settings-section mb-4">
+                            <h6 class="text-primary border-bottom pb-2 mb-3">
+                                <i class="bi bi-person-badge-fill me-2"></i>Action Permissions
+                            </h6>
+                            <small class="text-muted d-block mb-3">Set minimum user level required for each
+                                action</small>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Delete Files</label>
+                                    <select class="form-select" id="setting-DELETE_LEVEL">
+                                        <option value="guest">Guest (Anyone)</option>
+                                        <option value="user">User (Logged in)</option>
+                                        <option value="admin">Admin Only</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Flag/Unflag Files</label>
+                                    <select class="form-select" id="setting-FLAG_LEVEL">
+                                        <option value="guest">Guest (Anyone)</option>
+                                        <option value="user">User (Logged in)</option>
+                                        <option value="admin">Admin Only</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Archive Files</label>
+                                    <select class="form-select" id="setting-ARCHIVE_LEVEL">
+                                        <option value="guest">Guest (Anyone)</option>
+                                        <option value="user">User (Logged in)</option>
+                                        <option value="admin">Admin Only</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Toggle Permissions -->
+                        <div class="settings-section mb-4">
+                            <h6 class="text-primary border-bottom pb-2 mb-3">
+                                <i class="bi bi-toggles me-2"></i>Toggle Permissions
+                            </h6>
+                            <small class="text-muted d-block mb-3">Set permission level and override passphrase for each
+                                toggle</small>
+
+                            <!-- Content Scan Toggle -->
+                            <div class="card bg-dark mb-3">
+                                <div class="card-body py-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <label class="form-label mb-0">Content Scan Toggle</label>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select form-select-sm"
+                                                id="setting-TOGGLE_CONTENT_SCAN_LEVEL">
+                                                <option value="guest">Guest</option>
+                                                <option value="user">User</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="password" class="form-control form-control-sm"
+                                                id="setting-TOGGLE_CONTENT_SCAN_PASSPHRASE"
+                                                placeholder="Override passphrase">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Hide Archive Toggle -->
+                            <div class="card bg-dark mb-3">
+                                <div class="card-body py-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <label class="form-label mb-0">Hide Archive Toggle</label>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select form-select-sm"
+                                                id="setting-TOGGLE_HIDE_ARCHIVE_LEVEL">
+                                                <option value="guest">Guest</option>
+                                                <option value="user">User</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="password" class="form-control form-control-sm"
+                                                id="setting-TOGGLE_ARCHIVE_PASSPHRASE"
+                                                placeholder="Override passphrase">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Safe Mode Toggle -->
+                            <div class="card bg-dark mb-3">
+                                <div class="card-body py-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <label class="form-label mb-0">Safe Mode Toggle</label>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select form-select-sm"
+                                                id="setting-TOGGLE_SAFEMODE_VIEW_LEVEL">
+                                                <option value="guest">Guest</option>
+                                                <option value="user">User</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="password" class="form-control form-control-sm"
+                                                id="setting-TOGGLE_SAFEMODE_PASSPHRASE"
+                                                placeholder="Override passphrase">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Safe Mode Settings -->
+                        <div class="settings-section mb-4">
+                            <h6 class="text-primary border-bottom pb-2 mb-3">
+                                <i class="bi bi-shield-fill me-2"></i>Safe Mode Settings
+                            </h6>
+                            <div class="alert alert-info py-2 mb-3">
+                                <small><strong>Safe Mode</strong> It uses NSFW Keywords
+                                    and NSFW Folders to identify what to hide.</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">NSFW Folders</label>
+                                <input type="text" class="form-control" id="setting-NSFW_FOLDERS"
+                                    placeholder="NSFW, Adult, Explicit">
+                                <small class="text-muted">Files in these folder names are hidden when Safe Mode is
+                                    ON</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">NSFW Keywords</label>
+                                <textarea class="form-control" id="setting-NSFW_KEYWORDS" rows="3"
+                                    placeholder="adult, bikini, nude..."></textarea>
+                                <small class="text-muted">Comma-separated keywords checked in image metadata (Also used
+                                    by Content Scan)</small>
+                            </div>
+                        </div>
+
+                        <!-- Content Scan Settings -->
+                        <div class="settings-section mb-4">
+                            <h6 class="text-primary border-bottom pb-2 mb-3">
+                                <i class="bi bi-eye-fill me-2"></i>Content Scan Settings
+                            </h6>
+                            <div class="alert alert-warning py-2 mb-3">
+                                <small><strong>Content Scan</strong> automatically detects and flags new files. It uses
+                                    NSFW Keywords (defined in Safe Mode) and AI-based NudeNet labels to scan incoming
+                                    images.</small>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Scan Offset</label>
+                                    <input type="number" class="form-control" id="setting-CONTENT_SCAN_OFFSET" min="0"
+                                        max="10" value="0">
+                                    <small class="text-muted">Skip N newest images before scanning</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Nudity Threshold</label>
+                                    <input type="range" class="form-range" id="setting-NUDITY_THRESHOLD" min="0" max="1"
+                                        step="0.05" value="0.5">
+                                    <small class="text-muted">Lower = more sensitive (<span
+                                            id="threshold-value">0.5</span>)</small>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">NSFW Labels (NudeNet)</label>
+                                <small class="text-muted d-block mb-2">AI-detected body parts that trigger NSFW
+                                    flagging</small>
+                                <div class="row" id="nsfw-labels-container">
+                                    <!-- Exposed Labels -->
+                                    <div class="col-md-6">
+                                        <div class="card bg-dark mb-2">
+                                            <div class="card-body py-2">
+                                                <small class="text-warning d-block mb-2">Exposed (High Priority)</small>
+                                                <div class="form-check">
+                                                    <input class="form-check-input nsfw-label-check" type="checkbox"
+                                                        value="FEMALE_BREAST_EXPOSED" id="label-FEMALE_BREAST_EXPOSED">
+                                                    <label class="form-check-label"
+                                                        for="label-FEMALE_BREAST_EXPOSED">Female Breast</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input nsfw-label-check" type="checkbox"
+                                                        value="FEMALE_GENITALIA_EXPOSED"
+                                                        id="label-FEMALE_GENITALIA_EXPOSED">
+                                                    <label class="form-check-label"
+                                                        for="label-FEMALE_GENITALIA_EXPOSED">Female Genitalia</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input nsfw-label-check" type="checkbox"
+                                                        value="MALE_GENITALIA_EXPOSED"
+                                                        id="label-MALE_GENITALIA_EXPOSED">
+                                                    <label class="form-check-label"
+                                                        for="label-MALE_GENITALIA_EXPOSED">Male Genitalia</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input nsfw-label-check" type="checkbox"
+                                                        value="BUTTOCKS_EXPOSED" id="label-BUTTOCKS_EXPOSED">
+                                                    <label class="form-check-label"
+                                                        for="label-BUTTOCKS_EXPOSED">Buttocks</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input nsfw-label-check" type="checkbox"
+                                                        value="ANUS_EXPOSED" id="label-ANUS_EXPOSED">
+                                                    <label class="form-check-label"
+                                                        for="label-ANUS_EXPOSED">Anus</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input nsfw-label-check" type="checkbox"
+                                                        value="BELLY_EXPOSED" id="label-BELLY_EXPOSED">
+                                                    <label class="form-check-label"
+                                                        for="label-BELLY_EXPOSED">Belly</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Covered Labels -->
+                                    <div class="col-md-6">
+                                        <div class="card bg-dark mb-2">
+                                            <div class="card-body py-2">
+                                                <small class="text-info d-block mb-2">Covered (Lower Priority)</small>
+                                                <div class="form-check">
+                                                    <input class="form-check-input nsfw-label-check" type="checkbox"
+                                                        value="FEMALE_BREAST_COVERED" id="label-FEMALE_BREAST_COVERED">
+                                                    <label class="form-check-label"
+                                                        for="label-FEMALE_BREAST_COVERED">Female Breast</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input nsfw-label-check" type="checkbox"
+                                                        value="FEMALE_GENITALIA_COVERED"
+                                                        id="label-FEMALE_GENITALIA_COVERED">
+                                                    <label class="form-check-label"
+                                                        for="label-FEMALE_GENITALIA_COVERED">Female Genitalia</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input nsfw-label-check" type="checkbox"
+                                                        value="MALE_GENITALIA_COVERED"
+                                                        id="label-MALE_GENITALIA_COVERED">
+                                                    <label class="form-check-label"
+                                                        for="label-MALE_GENITALIA_COVERED">Male Genitalia</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input nsfw-label-check" type="checkbox"
+                                                        value="BUTTOCKS_COVERED" id="label-BUTTOCKS_COVERED">
+                                                    <label class="form-check-label"
+                                                        for="label-BUTTOCKS_COVERED">Buttocks</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input nsfw-label-check" type="checkbox"
+                                                        value="ANUS_COVERED" id="label-ANUS_COVERED">
+                                                    <label class="form-check-label"
+                                                        for="label-ANUS_COVERED">Anus</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input nsfw-label-check" type="checkbox"
+                                                        value="BELLY_COVERED" id="label-BELLY_COVERED">
+                                                    <label class="form-check-label"
+                                                        for="label-BELLY_COVERED">Belly</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Additional Labels -->
+                                    <div class="col-12">
+                                        <div class="card bg-dark">
+                                            <div class="card-body py-2">
+                                                <small class="text-secondary d-block mb-2">Other Labels</small>
+                                                <div class="row">
+                                                    <div class="col-6 col-md-3">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input nsfw-label-check"
+                                                                type="checkbox" value="FEET_EXPOSED"
+                                                                id="label-FEET_EXPOSED">
+                                                            <label class="form-check-label"
+                                                                for="label-FEET_EXPOSED">Feet Exposed</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6 col-md-3">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input nsfw-label-check"
+                                                                type="checkbox" value="FEET_COVERED"
+                                                                id="label-FEET_COVERED">
+                                                            <label class="form-check-label"
+                                                                for="label-FEET_COVERED">Feet Covered</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6 col-md-3">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input nsfw-label-check"
+                                                                type="checkbox" value="ARMPITS_EXPOSED"
+                                                                id="label-ARMPITS_EXPOSED">
+                                                            <label class="form-check-label"
+                                                                for="label-ARMPITS_EXPOSED">Armpits Exposed</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6 col-md-3">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input nsfw-label-check"
+                                                                type="checkbox" value="ARMPITS_COVERED"
+                                                                id="label-ARMPITS_COVERED">
+                                                            <label class="form-check-label"
+                                                                for="label-ARMPITS_COVERED">Armpits Covered</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6 col-md-3">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input nsfw-label-check"
+                                                                type="checkbox" value="FACE_FEMALE"
+                                                                id="label-FACE_FEMALE">
+                                                            <label class="form-check-label" for="label-FACE_FEMALE">Face
+                                                                Female</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6 col-md-3">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input nsfw-label-check"
+                                                                type="checkbox" value="FACE_MALE" id="label-FACE_MALE">
+                                                            <label class="form-check-label" for="label-FACE_MALE">Face
+                                                                Male</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+
+                    </form>
+
+                    <div id="settings-error" class="alert alert-danger" style="display: none;"></div>
+                    <div id="settings-success" class="alert alert-success" style="display: none;"></div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" onclick="hideSettingsModal()">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="saveSettings()">
+                        <i class="bi bi-check-lg me-2"></i>Save Settings
+                    </button>
                 </div>
             </div>
         </div>
@@ -238,17 +672,23 @@
                                 title="Auto-scan new images for NSFW content">Content Scan</label>
                         </div>
 
-                        <!-- Archive View Toggle -->
+                        <!-- Hide Archive Toggle -->
                         <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="archive-view-toggle">
-                            <label class="form-check-label" for="archive-view-toggle"
-                                title="Show/hide Archive folder content">Archive View</label>
+                            <input class="form-check-input" type="checkbox" id="hide-archive-toggle">
+                            <label class="form-check-label" for="hide-archive-toggle"
+                                title="Show/hide Archive folder content">Hide Archive</label>
                         </div>
 
                         <!-- Refresh Button -->
                         <button id="refresh-media-btn" title="Refresh media list"
                             class="btn btn-sm btn-outline-secondary">
                             <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+
+                        <!-- Settings Button (Admin Only) -->
+                        <button id="settings-btn" title="Settings" class="btn btn-sm btn-outline-secondary"
+                            onclick="showSettingsModal()">
+                            <i class="bi bi-gear-fill"></i>
                         </button>
 
                         <!-- Fullscreen Button -->
