@@ -4,6 +4,14 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-01-24]
+
+### Fixed
+- **Unicode file paths in content scanner**<br>
+  Fixed content scanner failing on images with non-ASCII characters in their filenames (e.g., Chinese, Japanese). OpenCV's imread doesn't handle Unicode paths on Windows, so files are now temporarily copied to an ASCII-safe path before scanning.
+
+---
+
 ## [2026-01-19]
 
 ### Changed

@@ -8,11 +8,54 @@ import os
 import shutil
 import threading
 import time
+import tempfile
 from typing import Optional, Generator, List, Dict, Any
 
 # NudeNet detector (lazy loaded to avoid startup delay)
 _detector = None
 _detector_lock = threading.Lock()
+
+
+def _has_non_ascii(path: str) -> bool:
+    """Check if path contains non-ASCII characters (e.g., Chinese, Japanese, etc.)"""
+    try:
+        path.encode('ascii')
+        return False
+    except UnicodeEncodeError:
+        return True
+
+
+def _get_safe_temp_path(file_path: str) -> str:
+    """
+    Get a temporary file path with ASCII-safe name for files with Unicode names.
+    Returns the original path if it's already ASCII-safe.
+    
+    This is needed because OpenCV's imread() on Windows doesn't handle Unicode paths.
+    """
+    if not _has_non_ascii(file_path):
+        return file_path
+    
+    # Create temp file with same extension
+    ext = os.path.splitext(file_path)[1].lower()
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, f"content_scan_unicode_{os.getpid()}{ext}")
+    
+    try:
+        # Copy file to temp location with ASCII-safe name
+        shutil.copy2(file_path, temp_path)
+        return temp_path
+    except Exception as e:
+        print(f"[ContentScanner] ⚠️ Failed to create temp copy for Unicode path: {e}")
+        return file_path  # Return original, let it fail with a clear error
+
+
+def _cleanup_temp_file(temp_path: str, original_path: str):
+    """Clean up temporary file if it was created"""
+    if temp_path != original_path and os.path.exists(temp_path):
+        try:
+            os.remove(temp_path)
+        except:
+            pass
 
 # Configuration - will be set from main app
 NSFW_KEYWORDS = []
@@ -199,6 +242,9 @@ def check_nudity_detection(file_path: str) -> bool:
     if detector is None:
         return False
     
+    # Create temp copy for files with Unicode paths (OpenCV imread issue on Windows)
+    scan_path = _get_safe_temp_path(file_path)
+    
     try:
         # Wait briefly for file to be fully written
         time.sleep(0.5)
@@ -209,7 +255,7 @@ def check_nudity_detection(file_path: str) -> bool:
             return False
         
         filename = os.path.basename(file_path)
-        results = detector.detect(file_path)
+        results = detector.detect(scan_path)
         
         # Log all detections found
         if results:
@@ -235,6 +281,9 @@ def check_nudity_detection(file_path: str) -> bool:
     except Exception as e:
         print(f"[ContentScanner] ❌ Error scanning {file_path}: {e}")
         return False
+    finally:
+        # Clean up temp file if created
+        _cleanup_temp_file(scan_path, file_path)
 
 
 def scan_media_content(file_path: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
