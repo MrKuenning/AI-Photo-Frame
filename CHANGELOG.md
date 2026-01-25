@@ -6,6 +6,10 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ## [2026-01-24]
 
+### Changed
+- **Image zoom overhaul**<br>
+  Completely rewrote the image zoom system. Now supports continuous zoom levels via scroll wheel (desktop) or pinch-to-zoom (mobile), with real-time drag-to-pan when zoomed. Double-click or double-tap toggles between fit-to-view and 100% actual size. Works consistently on Home and Gallery pages. CSS transitions are disabled during zoom for instant, lag-free responsiveness.
+
 ### Fixed
 - **Unicode file paths in content scanner**<br>
   Fixed content scanner failing on images with non-ASCII characters in their filenames (e.g., Chinese, Japanese). OpenCV's imread doesn't handle Unicode paths on Windows, so files are now temporarily copied to an ASCII-safe path before scanning.
