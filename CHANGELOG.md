@@ -33,6 +33,13 @@ All notable changes to the AI Photo Frame application will be documented in this
 - **Optimized Content Scanning**<br>
   The background AI content scanner now properly skips files in the Archive folder, preventing unnecessary resource usage and tagging of archived content.
 
+### Performance
+- **Atomic Metadata Updates**<br>
+  Fixed race conditions during image scanning that caused "Folder Only" metadata to appear. The image list is now built in the background and swapped atomically, ensuring consistent data availability.
+
+- **Background Task Optimization**<br>
+  The background metadata enrichment task now intelligently skips the Archive folder and yields system resources, significantly reducing CPU usage and eliminating UI lag during scans.
+
 ---
 
 ## [2026-01-24]

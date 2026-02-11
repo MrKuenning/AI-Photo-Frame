@@ -506,18 +506,22 @@ def scan_images():
         IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
         VIDEO_EXTENSIONS = ('.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v')
         
-        with cache_lock:
-            image_list = []
-            subfolders = []
-            
-            # Get only top-level subfolders for navigation
+        # Build list locally first (atomic update pattern)
+        temp_image_list = []
+        temp_subfolders = []
+        
+        # Get only top-level subfolders for navigation
+        try:
             for item in os.listdir(CONFIG['IMAGE_FOLDER']):
                 item_path = os.path.join(CONFIG['IMAGE_FOLDER'], item)
                 if os.path.isdir(item_path):
-                    subfolders.append(item)
-            
-            # Recursive function to scan all media files in all subfolder levels
-            def scan_folder(folder_path, top_folder):
+                    temp_subfolders.append(item)
+        except Exception as e:
+            print(f"[SCAN] Error listing top folders: {e}")
+        
+        # Recursive function to scan all media files in all subfolder levels
+        def scan_folder(folder_path, top_folder):
+            try:
                 for item in os.listdir(folder_path):
                     item_path = os.path.join(folder_path, item)
                     
@@ -532,7 +536,10 @@ def scan_images():
                     
                     if is_image or is_video:
                         # Get file modification time
-                        mod_time = os.path.getmtime(item_path)
+                        try:
+                            mod_time = os.path.getmtime(item_path)
+                        except OSError:
+                            continue # Skip if file unsafe/removed
                         
                         # Get metadata
                         metadata = get_image_metadata(item_path)
@@ -566,26 +573,36 @@ def scan_images():
                             'media_type': media_type  # 'image' or 'video'
                         }
                         
-                        image_list.append(media_info)
-            
-            # Scan all top-level subfolders recursively
-            for subfolder in subfolders:
-                subfolder_path = os.path.join(CONFIG['IMAGE_FOLDER'], subfolder)
-                scan_folder(subfolder_path, subfolder)
-            
-            # Sort media by modification time (newest first)
-            image_list.sort(key=lambda x: x['mod_time'], reverse=True)
+                        temp_image_list.append(media_info)
+            except Exception as e:
+                print(f"[SCAN] Error scanning folder {folder_path}: {e}")
+        
+        # Scan all top-level subfolders recursively
+        for subfolder in temp_subfolders:
+            subfolder_path = os.path.join(CONFIG['IMAGE_FOLDER'], subfolder)
+            scan_folder(subfolder_path, subfolder)
+        
+        # Sort media by modification time (newest first)
+        temp_image_list.sort(key=lambda x: x['mod_time'], reverse=True)
+        
+        # ATOMIC SWAP: Update global lists under lock
+        with cache_lock:
+            image_list = temp_image_list
+            subfolders = temp_subfolders
             
             # Update latest media and timestamp
             if image_list:
                 latest_image = image_list[0]
                 latest_image_timestamp = latest_image['mod_time']
-            
+                
             print(f"[SCAN] Complete! Found {len(image_list)} media files")
             
             # Start background enrichment to get detailed metadata (prompt, seed, model, loras)
             # This does NOT perform any keyword filtering/tagging, just data gathering for display.
             threading.Thread(target=_enrich_metadata_background_task, daemon=True).start()
+    
+    except Exception as e:
+        print(f"[SCAN] Fatal error during scan: {e}")
     
     # Always reset the flag when done (even if there's an exception)
     finally:
@@ -607,7 +624,16 @@ def _enrich_metadata_background_task():
         items_to_check = [img for img in image_list if not img.get('embedded_loaded', False)]
     
     for img in items_to_check:
+        # OPTIMIZATION: Skip Archive files to save resources
+        # We only need detailed metadata on-demand for archived items
+        if is_archived_file(img.get('subfolder', '')):
+            continue
+            
         try:
+            # OPTIMIZATION: Small sleep to yield resources to main thread/web requests
+            # This prevents the background task from hogging Disk I/O
+            time.sleep(0.01)
+            
             # unique identifier to see if we already have it in cache?
             # extract_embedded_metadata handles caching internally based on file path
             embedded = extract_embedded_metadata(img['path'])
