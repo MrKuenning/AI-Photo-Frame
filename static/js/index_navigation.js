@@ -55,55 +55,58 @@ document.addEventListener('DOMContentLoaded', function () {
         const deleteButton = document.getElementById('home-delete-btn');
         if (deleteButton) {
             deleteButton.addEventListener('click', function () {
-                if (!heroContainer) return;
+                // Request permission/unlock first
+                requestActionUnlock('delete', function () {
+                    if (!heroContainer) return;
 
-                const filename = heroContainer.dataset.filename;
-                const subfolder = heroContainer.dataset.subfolder;
-                const fullPath = subfolder + '/' + filename;
+                    const filename = heroContainer.dataset.filename;
+                    const subfolder = heroContainer.dataset.subfolder;
+                    const fullPath = subfolder + '/' + filename;
 
-                // Confirm deletion
-                if (!confirm(`Are you sure you want to permanently delete "${filename}"?\n\nThis action cannot be undone.`)) {
-                    return;
-                }
+                    // Confirm deletion
+                    if (!confirm(`Are you sure you want to permanently delete "${filename}"?\n\nThis action cannot be undone.`)) {
+                        return;
+                    }
 
-                // Send DELETE request
-                fetch(`/delete_image/${encodeURIComponent(fullPath)}`, {
-                    method: 'DELETE'
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            console.log('File deleted successfully');
-
-                            // Remove the thumbnail from the sidebar
-                            const thumbnailLink = currentImages[currentIndex];
-                            if (thumbnailLink) {
-                                const thumbnailContainer = thumbnailLink.closest('.mb-2');
-                                if (thumbnailContainer) {
-                                    thumbnailContainer.remove();
-                                }
-                            }
-
-                            // Update images array
-                            updateCurrentImages();
-
-                            // Navigate to next image, or previous if at end, or reload if none left
-                            if (currentImages.length === 0) {
-                                window.location.reload();
-                            } else if (currentIndex >= currentImages.length) {
-                                currentIndex = currentImages.length - 1;
-                                navigateToImage(currentIndex);
-                            } else {
-                                navigateToImage(currentIndex);
-                            }
-                        } else {
-                            alert('Error deleting file: ' + (data.error || 'Unknown error'));
-                        }
+                    // Send DELETE request
+                    fetch(`/delete_image/${encodeURIComponent(fullPath)}`, {
+                        method: 'DELETE'
                     })
-                    .catch(error => {
-                        console.error('Error deleting file:', error);
-                        alert('Error deleting file. Please try again.');
-                    });
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                console.log('File deleted successfully');
+
+                                // Remove the thumbnail from the sidebar
+                                const thumbnailLink = currentImages[currentIndex];
+                                if (thumbnailLink) {
+                                    const thumbnailContainer = thumbnailLink.closest('.mb-2');
+                                    if (thumbnailContainer) {
+                                        thumbnailContainer.remove();
+                                    }
+                                }
+
+                                // Update images array
+                                updateCurrentImages();
+
+                                // Navigate to next image, or previous if at end, or reload if none left
+                                if (currentImages.length === 0) {
+                                    window.location.reload();
+                                } else if (currentIndex >= currentImages.length) {
+                                    currentIndex = currentImages.length - 1;
+                                    navigateToImage(currentIndex);
+                                } else {
+                                    navigateToImage(currentIndex);
+                                }
+                            } else {
+                                alert('Error deleting file: ' + (data.error || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error deleting file:', error);
+                            alert('Error deleting file. Please try again.');
+                        });
+                });
             });
         }
 
@@ -131,57 +134,60 @@ document.addEventListener('DOMContentLoaded', function () {
             updateFlagButtonState();
 
             flagButton.addEventListener('click', function () {
-                if (!heroContainer) return;
+                // Request permission/unlock first
+                requestActionUnlock('flag', function () {
+                    if (!heroContainer) return;
 
-                const filename = heroContainer.dataset.filename;
-                const subfolder = heroContainer.dataset.subfolder || '';
-                const fullPath = subfolder ? subfolder + '/' + filename : filename;
-                const isNsfw = subfolder.toLowerCase().includes('nsfw');
+                    const filename = heroContainer.dataset.filename;
+                    const subfolder = heroContainer.dataset.subfolder || '';
+                    const fullPath = subfolder ? subfolder + '/' + filename : filename;
+                    const isNsfw = subfolder.toLowerCase().includes('nsfw');
 
-                // Choose endpoint based on current state
-                const endpoint = isNsfw ? 'unflag_nsfw' : 'flag_nsfw';
+                    // Choose endpoint based on current state
+                    const endpoint = isNsfw ? 'unflag_nsfw' : 'flag_nsfw';
 
-                // Send POST request (no confirmation)
-                fetch(`/${endpoint}/${encodeURIComponent(fullPath)}`, {
-                    method: 'POST'
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            console.log(`File ${isNsfw ? 'unflagged' : 'flagged'} successfully`);
-
-                            // Remove the thumbnail from the sidebar (it moved to different folder)
-                            const thumbnailLink = currentImages[currentIndex];
-                            if (thumbnailLink) {
-                                const thumbnailContainer = thumbnailLink.closest('.mb-2');
-                                if (thumbnailContainer) {
-                                    thumbnailContainer.remove();
-                                }
-                            }
-
-                            // Update images array
-                            updateCurrentImages();
-
-                            // Navigate to next image, or previous if at end, or reload if none left
-                            if (currentImages.length === 0) {
-                                window.location.reload();
-                            } else if (currentIndex >= currentImages.length) {
-                                currentIndex = currentImages.length - 1;
-                                navigateToImage(currentIndex);
-                            } else {
-                                navigateToImage(currentIndex);
-                            }
-
-                            // Update button state for new image
-                            updateFlagButtonState();
-                        } else {
-                            alert('Error: ' + (data.error || 'Unknown error'));
-                        }
+                    // Send POST request (no confirmation)
+                    fetch(`/${endpoint}/${encodeURIComponent(fullPath)}`, {
+                        method: 'POST'
                     })
-                    .catch(error => {
-                        console.error('Error toggling NSFW flag:', error);
-                        alert('Error toggling NSFW flag. Please try again.');
-                    });
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                console.log(`File ${isNsfw ? 'unflagged' : 'flagged'} successfully`);
+
+                                // Remove the thumbnail from the sidebar (it moved to different folder)
+                                const thumbnailLink = currentImages[currentIndex];
+                                if (thumbnailLink) {
+                                    const thumbnailContainer = thumbnailLink.closest('.mb-2');
+                                    if (thumbnailContainer) {
+                                        thumbnailContainer.remove();
+                                    }
+                                }
+
+                                // Update images array
+                                updateCurrentImages();
+
+                                // Navigate to next image, or previous if at end, or reload if none left
+                                if (currentImages.length === 0) {
+                                    window.location.reload();
+                                } else if (currentIndex >= currentImages.length) {
+                                    currentIndex = currentImages.length - 1;
+                                    navigateToImage(currentIndex);
+                                } else {
+                                    navigateToImage(currentIndex);
+                                }
+
+                                // Update button state for new image
+                                updateFlagButtonState();
+                            } else {
+                                alert('Error: ' + (data.error || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error toggling NSFW flag:', error);
+                            alert('Error toggling NSFW flag. Please try again.');
+                        });
+                });
             });
 
             // Update flag state when navigating to new image

@@ -13,11 +13,23 @@ window.authState = {
     canFlag: true,
     canArchive: true,
     canToggleContentScan: true,
+    canToggleContentLock: true,
     canToggleHideArchive: true,
     canToggleSafemode: true,
+    canMarkSafe: true,
+    canAccessSettings: false,
     contentScanUnlocked: false,
+    contentLockUnlocked: false,
     hideArchiveUnlocked: false,
-    safemodeUnlocked: false
+    safemodeUnlocked: false,
+    deleteUnlocked: false,
+    flagUnlocked: false,
+    archiveUnlocked: false,
+    settingsUnlocked: false,
+    deletePassphraseRequired: false,
+    flagPassphraseRequired: false,
+    archivePassphraseRequired: false,
+    settingsPassphraseRequired: false
 };
 
 // Check authentication status
@@ -33,12 +45,24 @@ async function checkAuthStatus() {
             canDelete: data.can_delete,
             canFlag: data.can_flag,
             canArchive: data.can_archive,
+            canMarkSafe: data.can_mark_safe,
+            canAccessSettings: data.can_access_settings,
             canToggleContentScan: data.can_toggle_content_scan,
+            canToggleContentLock: data.can_toggle_content_lock,
             canToggleHideArchive: data.can_toggle_hide_archive,
             canToggleSafemode: data.can_toggle_safemode,
             contentScanUnlocked: data.content_scan_unlocked,
+            contentLockUnlocked: data.content_lock_unlocked,
             hideArchiveUnlocked: data.hide_archive_unlocked,
-            safemodeUnlocked: data.safemode_unlocked
+            safemodeUnlocked: data.safemode_unlocked,
+            deleteUnlocked: data.delete_unlocked,
+            flagUnlocked: data.flag_unlocked,
+            archiveUnlocked: data.archive_unlocked,
+            settingsUnlocked: data.settings_unlocked,
+            deletePassphraseRequired: data.delete_passphrase_required,
+            flagPassphraseRequired: data.flag_passphrase_required,
+            archivePassphraseRequired: data.archive_passphrase_required,
+            settingsPassphraseRequired: data.settings_passphrase_required
         };
 
         // Show login modal and overlay if auth required and not authenticated
@@ -321,18 +345,149 @@ function hideAuthOverlay() {
     }
 }
 
+// Action Unlock Logic
+let pendingActionCallback = null;
+
+function showActionUnlockModal(action, title) {
+    const modal = document.getElementById('action-unlock-modal');
+    if (modal) {
+        document.getElementById('action-unlock-title').textContent = title || 'Unlock Action';
+        document.getElementById('action-unlock-target').value = action;
+        modal.classList.add('show');
+        modal.style.display = 'block';
+        document.body.classList.add('modal-open');
+
+        const input = document.getElementById('action-unlock-passphrase');
+        if (input) setTimeout(() => input.focus(), 100);
+    }
+}
+
+function hideActionUnlockModal() {
+    const modal = document.getElementById('action-unlock-modal');
+    if (modal) {
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        document.getElementById('action-unlock-passphrase').value = '';
+        document.getElementById('action-unlock-error').style.display = 'none';
+    }
+    // Clear pending callback if cancelled? 
+    // No, keep it just in case, but usually we'd want to clear it.
+}
+
+async function handleActionUnlock(event) {
+    if (event) event.preventDefault();
+
+    const action = document.getElementById('action-unlock-target').value;
+    const passphrase = document.getElementById('action-unlock-passphrase').value;
+    const errorDiv = document.getElementById('action-unlock-error');
+
+    // Map action to unlock endpoint
+    const endpoints = {
+        'delete': '/unlock_delete',
+        'flag': '/unlock_flag',
+        'archive': '/unlock_archive'
+    };
+
+    const endpoint = endpoints[action];
+    if (!endpoint) {
+        if (errorDiv) {
+            errorDiv.textContent = 'Invalid action type';
+            errorDiv.style.display = 'block';
+        }
+        return;
+    }
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ passphrase })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            hideActionUnlockModal();
+
+            // Refresh auth state
+            await checkAuthStatus();
+
+            // Execute pending callback
+            if (pendingActionCallback) {
+                pendingActionCallback();
+                pendingActionCallback = null;
+            }
+        } else {
+            if (errorDiv) {
+                errorDiv.textContent = data.error || 'Invalid passphrase';
+                errorDiv.style.display = 'block';
+            }
+        }
+    } catch (error) {
+        if (errorDiv) {
+            errorDiv.textContent = 'Error unlocking action';
+            errorDiv.style.display = 'block';
+        }
+    }
+}
+
+/**
+ * Request permission to perform an action.
+ * If permission is denied but unlocked via passphrase is possible, shows unlock modal.
+ * @param {string} action - 'delete', 'flag', 'archive'
+ * @param {function} callback - Function to execute if permission granted/unlocked
+ */
+function requestActionUnlock(action, callback) {
+    // Check if we already have permission
+    let hasPermission = false;
+    let passphraseRequired = false;
+    let title = 'Unlock Action';
+
+    if (action === 'delete') {
+        hasPermission = window.authState.canDelete;
+        passphraseRequired = window.authState.deletePassphraseRequired;
+        title = 'Unlock Delete';
+    } else if (action === 'flag') {
+        hasPermission = window.authState.canFlag;
+        passphraseRequired = window.authState.flagPassphraseRequired;
+        title = 'Unlock Flag/Unflag';
+    } else if (action === 'archive') {
+        hasPermission = window.authState.canArchive;
+        passphraseRequired = window.authState.archivePassphraseRequired;
+        title = 'Unlock Archive';
+    }
+
+    if (hasPermission) {
+        // Already allowed, just run it
+        callback();
+    } else if (passphraseRequired) {
+        // Not allowed, but can unlock
+        pendingActionCallback = callback;
+        showActionUnlockModal(action, title);
+    } else {
+        // Not allowed, no passphrase
+        alert('Access Denied: You do not have permission to perform this action.');
+    }
+}
+
 // Make functions available globally
 window.checkAuthStatus = checkAuthStatus;
 window.showLoginModal = showLoginModal;
 window.hideLoginModal = hideLoginModal;
 window.handleLogin = handleLogin;
 window.handleLogout = handleLogout;
+window.showAuthOverlay = showAuthOverlay;
+window.hideAuthOverlay = hideAuthOverlay;
+window.showActionUnlockModal = showActionUnlockModal;
+window.hideActionUnlockModal = hideActionUnlockModal;
+window.handleActionUnlock = handleActionUnlock;
+window.requestActionUnlock = requestActionUnlock;
 window.showSafemodeUnlockModal = showSafemodeUnlockModal;
 window.hideSafemodeUnlockModal = hideSafemodeUnlockModal;
 window.handleSafemodeUnlock = handleSafemodeUnlock;
 window.updateUIPermissions = updateUIPermissions;
 window.interceptSafemodeToggle = interceptSafemodeToggle;
-window.showAuthOverlay = showAuthOverlay;
 window.hideAuthOverlay = hideAuthOverlay;
 
 // Content Scan unlock modal handlers
@@ -414,6 +569,8 @@ function showHideArchiveUnlockModal() {
         document.body.classList.add('modal-open');
         const input = modal.querySelector('#archive-view-passphrase');
         if (input) setTimeout(() => input.focus(), 100);
+    } else {
+        console.error('Archive view unlock modal not found');
     }
 }
 
@@ -447,7 +604,7 @@ async function handleHideArchiveUnlock(event) {
             if (passphraseInput) passphraseInput.value = '';
             if (errorDiv) errorDiv.style.display = 'none';
             // Toggle archive view
-            const toggle = document.getElementById('archive-view-toggle');
+            const toggle = document.getElementById('hide-archive-toggle');
             if (toggle) {
                 toggle.checked = !toggle.checked;
                 toggle.dispatchEvent(new Event('change'));

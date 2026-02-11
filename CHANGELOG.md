@@ -4,6 +4,37 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-02-11]
+
+### Added
+- **Enhanced Permission System**<br>
+  Overhauled the application's security model to support granular role-based access control (Guest/User/Admin). Critical actions (Delete, Flag, Archive) and Settings access can now be individually password-protected, allowing authorized users to perform specific tasks without full admin login.
+
+- **Content Lock**<br>
+  Introduced "Content Lock" as a dedicated feature separate from Safe Mode. While Safe Mode filters content based on AI analysis and keywords, Content Lock exclusively hides specific folders (e.g., "NSFW"), allowing for folder-based privacy control independent of content scanning.
+
+### Changed
+- **Relaxed Toggle Permissions**<br>
+  Content Lock and Content Scan toggles can now be enabled by any user (Guest). Only disabling these toggles requires higher permissions or a passphrase, matching Safe Mode behavior.
+
+- **Content Lock Persistence**<br>
+  Content Lock state is now saved to localStorage, ensuring it persists across browser sessions and syncs correctly with cookies.
+
+- **Standardized Unlock Modals**<br>
+  Updated "Hide Archive" and "Content Lock" unlock modals to use consistent yellow warning buttons, matching other security prompts.
+
+### Fixed
+- **Hide Archive content leakage**<br>
+  Fixed multiple issues where archived content would still appear as the "latest image" on the Home and Frame pages if it was the most recently modified file. The viewer now correctly skips archived content when "Hide Archive" is enabled, even if all other images are filtered out.
+
+- **Hide Archive unlock modal**<br>
+  Fixed a bug where the "Hide Archive" unlock modal failed to appear due to an ID mismatch in the code.
+
+- **Optimized Content Scanning**<br>
+  The background AI content scanner now properly skips files in the Archive folder, preventing unnecessary resource usage and tagging of archived content.
+
+---
+
 ## [2026-01-24]
 
 ### Changed

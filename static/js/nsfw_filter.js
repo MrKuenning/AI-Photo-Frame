@@ -8,18 +8,30 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch('/auth_status')
             .then(response => response.json())
             .then(authData => {
-                const safemodeLocked = authData.safemode_lock_enabled && !authData.can_toggle_safemode;
+                const canToggle = authData.can_toggle_safemode;
 
-                if (safemodeLocked) {
-                    // Force safemode ON when locked, ignore localStorage
+                if (!canToggle) {
+                    // User doesn't have permission - force safemode ON and set up intercept
                     console.log('[NSFW Filter] Safemode is locked, forcing ON');
                     nsfwToggle.checked = true;
                     applyNsfwFilter(true);
                     localStorage.setItem('safeMode', 'true');
+
+                    // Intercept click to block unauthorized toggle
+                    nsfwToggle.addEventListener('click', function (e) {
+                        if (!window.authState?.canToggleSafemode) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (typeof showSafemodeUnlockModal === 'function') {
+                                showSafemodeUnlockModal();
+                            }
+                            return false;
+                        }
+                    }, false);
                     return;
                 }
 
-                // Not locked - use normal localStorage logic
+                // Has permission - use normal localStorage logic
                 initSafeModeFromStorage();
             })
             .catch(() => {

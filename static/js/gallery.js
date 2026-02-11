@@ -85,52 +85,55 @@ document.addEventListener('DOMContentLoaded', function () {
         const deleteButton = document.getElementById('delete-image-btn');
         if (deleteButton) {
             deleteButton.addEventListener('click', function () {
-                // Get current image info
-                if (currentIndex < 0 || currentIndex >= currentImages.length) return;
+                // Request permission/unlock first
+                requestActionUnlock('delete', function () {
+                    // Get current image info
+                    if (currentIndex < 0 || currentIndex >= currentImages.length) return;
 
-                const container = currentImages[currentIndex];
-                const filename = container.dataset.filename;
-                const subfolder = container.dataset.subfolder;
-                const fullPath = subfolder + '/' + filename;
+                    const container = currentImages[currentIndex];
+                    const filename = container.dataset.filename;
+                    const subfolder = container.dataset.subfolder;
+                    const fullPath = subfolder + '/' + filename;
 
-                // Confirm deletion
-                if (!confirm(`Are you sure you want to permanently delete "${filename}"?\n\nThis action cannot be undone.`)) {
-                    return;
-                }
+                    // Confirm deletion
+                    if (!confirm(`Are you sure you want to permanently delete "${filename}"?\n\nThis action cannot be undone.`)) {
+                        return;
+                    }
 
-                // Send DELETE request
-                fetch(`/delete_image/${encodeURIComponent(fullPath)}`, {
-                    method: 'DELETE'
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Remove the item from the grid
-                            container.remove();
-
-                            // Update currentImages array
-                            updateCurrentImages();
-
-                            // Show next image or close if none remain
-                            if (currentImages.length === 0) {
-                                closeImagePreview();
-                            } else {
-                                // Adjust index if we were at the end
-                                if (currentIndex >= currentImages.length) {
-                                    currentIndex = currentImages.length - 1;
-                                }
-                                navigateToImage(currentIndex);
-                            }
-
-                            console.log('File deleted successfully');
-                        } else {
-                            alert('Error deleting file: ' + (data.error || 'Unknown error'));
-                        }
+                    // Send DELETE request
+                    fetch(`/delete_image/${encodeURIComponent(fullPath)}`, {
+                        method: 'DELETE'
                     })
-                    .catch(error => {
-                        console.error('Error deleting file:', error);
-                        alert('Error deleting file. Please try again.');
-                    });
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Remove the item from the grid
+                                container.remove();
+
+                                // Update currentImages array
+                                updateCurrentImages();
+
+                                // Show next image or close if none remain
+                                if (currentImages.length === 0) {
+                                    closeImagePreview();
+                                } else {
+                                    // Adjust index if we were at the end
+                                    if (currentIndex >= currentImages.length) {
+                                        currentIndex = currentImages.length - 1;
+                                    }
+                                    navigateToImage(currentIndex);
+                                }
+
+                                console.log('File deleted successfully');
+                            } else {
+                                alert('Error deleting file: ' + (data.error || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error deleting file:', error);
+                            alert('Error deleting file. Please try again.');
+                        });
+                });
             });
         }
 
@@ -138,56 +141,110 @@ document.addEventListener('DOMContentLoaded', function () {
         const flagNsfwButton = document.getElementById('flag-nsfw-btn');
         if (flagNsfwButton) {
             flagNsfwButton.addEventListener('click', function () {
-                // Get current image info
-                if (currentIndex < 0 || currentIndex >= currentImages.length) return;
+                // Request permission/unlock first
+                requestActionUnlock('flag', function () {
+                    // Get current image info
+                    if (currentIndex < 0 || currentIndex >= currentImages.length) return;
 
-                const container = currentImages[currentIndex];
-                const filename = container.dataset.filename;
-                const subfolder = container.dataset.subfolder;
-                const fullPath = subfolder + '/' + filename;
+                    const container = currentImages[currentIndex];
+                    const filename = container.dataset.filename;
+                    const subfolder = container.dataset.subfolder;
+                    const fullPath = subfolder + '/' + filename;
 
-                // Check if file is in NSFW folder
-                const isInNsfw = subfolder.toLowerCase().includes('/nsfw') ||
-                    subfolder.toLowerCase().endsWith('nsfw') ||
-                    subfolder.toLowerCase() === 'nsfw';
+                    // Check if file is in NSFW folder
+                    const isInNsfw = subfolder.toLowerCase().includes('/nsfw') ||
+                        subfolder.toLowerCase().endsWith('nsfw') ||
+                        subfolder.toLowerCase() === 'nsfw';
 
-                // Choose endpoint based on current state
-                const endpoint = isInNsfw ? 'unflag_nsfw' : 'flag_nsfw';
-                const action = isInNsfw ? 'unflagged' : 'flagged';
+                    // Choose endpoint based on current state
+                    const endpoint = isInNsfw ? 'unflag_nsfw' : 'flag_nsfw';
+                    const action = isInNsfw ? 'unflagged' : 'flagged';
 
-                // Send request (no confirmation for speed)
-                fetch(`/${endpoint}/${encodeURIComponent(fullPath)}`, {
-                    method: 'POST'
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Remove the item from the grid (it's been moved)
-                            container.remove();
-
-                            // Update currentImages array
-                            updateCurrentImages();
-
-                            // Show next image or close if none remain
-                            if (currentImages.length === 0) {
-                                closeImagePreview();
-                            } else {
-                                // Adjust index if we were at the end
-                                if (currentIndex >= currentImages.length) {
-                                    currentIndex = currentImages.length - 1;
-                                }
-                                navigateToImage(currentIndex);
-                            }
-
-                            console.log(`File ${action} successfully`);
-                        } else {
-                            alert(`Error ${action.slice(0, -2)}ing file: ` + (data.error || 'Unknown error'));
-                        }
+                    // Send request (no confirmation for speed)
+                    fetch(`/${endpoint}/${encodeURIComponent(fullPath)}`, {
+                        method: 'POST'
                     })
-                    .catch(error => {
-                        console.error(`Error ${action.slice(0, -2)}ing file:`, error);
-                        alert(`Error ${action.slice(0, -2)}ing file. Please try again.`);
-                    });
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Remove the item from the grid (it's been moved)
+                                container.remove();
+
+                                // Update currentImages array
+                                updateCurrentImages();
+
+                                // Show next image or close if none remain
+                                if (currentImages.length === 0) {
+                                    closeImagePreview();
+                                } else {
+                                    // Adjust index if we were at the end
+                                    if (currentIndex >= currentImages.length) {
+                                        currentIndex = currentImages.length - 1;
+                                    }
+                                    navigateToImage(currentIndex);
+                                }
+
+                                console.log(`File ${action} successfully`);
+                            } else {
+                                alert(`Error ${action.slice(0, -2)}ing file: ` + (data.error || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error(`Error ${action.slice(0, -2)}ing file:`, error);
+                            alert(`Error ${action.slice(0, -2)}ing file. Please try again.`);
+                        });
+                });
+            });
+        }
+
+        // Mark Safe button handler
+        const markSafeButton = document.getElementById('mark-safe-btn');
+        if (markSafeButton) {
+            markSafeButton.addEventListener('click', function () {
+                // Request permission/unlock first (uses flag permission)
+                requestActionUnlock('flag', function () {
+                    // Get current image info
+                    if (currentIndex < 0 || currentIndex >= currentImages.length) return;
+
+                    const container = currentImages[currentIndex];
+                    const filename = container.dataset.filename;
+                    const subfolder = container.dataset.subfolder;
+                    const fullPath = subfolder + '/' + filename;
+
+                    // Send request
+                    fetch(`/mark_safe/${encodeURIComponent(fullPath)}`, {
+                        method: 'POST'
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Remove the item from the grid (it's been moved)
+                                container.remove();
+
+                                // Update currentImages array
+                                updateCurrentImages();
+
+                                // Show next image or close if none remain
+                                if (currentImages.length === 0) {
+                                    closeImagePreview();
+                                } else {
+                                    // Adjust index if we were at the end
+                                    if (currentIndex >= currentImages.length) {
+                                        currentIndex = currentImages.length - 1;
+                                    }
+                                    navigateToImage(currentIndex);
+                                }
+
+                                console.log('File marked as safe successfully');
+                            } else {
+                                alert('Error marking file as safe: ' + (data.error || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error marking file as safe:', error);
+                            alert('Error marking file as safe. Please try again.');
+                        });
+                });
             });
         }
 

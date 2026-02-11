@@ -42,10 +42,12 @@ def load_config():
             'dancing', 'breast', 'dancing', 'bathing', 'swim', 'xxx', 'yoga'
         ],
         'NSFW_FOLDERS': [],
+        'SAFE_FOLDERS': ['SAFE'],  # Folders that bypass content scanning
         'NUDITY_THRESHOLD': 0.5,
         'NSFW_LABELS': ['FEMALE_BREAST_EXPOSED', 'FEMALE_GENITALIA_EXPOSED', 'MALE_GENITALIA_EXPOSED', 'BUTTOCKS_EXPOSED', 'ANUS_EXPOSED'],
         'SAFE_MODE_DEFAULT': False,
         'CONTENT_SCAN_DEFAULT': False,
+        'CONTENT_LOCK_DEFAULT': False,
         'HIDE_ARCHIVE_DEFAULT': False,
         'AUTH_ENABLED': False,
         'USER_PASSPHRASE': '',
@@ -54,12 +56,21 @@ def load_config():
         'DELETE_LEVEL': 'guest',
         'FLAG_LEVEL': 'guest',
         'ARCHIVE_LEVEL': 'guest',
+        # Action passphrase overrides
+        'DELETE_PASSPHRASE': '',
+        'FLAG_PASSPHRASE': '',
+        'ARCHIVE_PASSPHRASE': '',
+        # Access permission levels
+        'SETTINGS_LEVEL': 'admin',
+        'SETTINGS_PASSPHRASE': '',
         # Toggle permission levels
         'TOGGLE_CONTENT_SCAN_LEVEL': 'guest',
+        'TOGGLE_CONTENT_LOCK_LEVEL': 'guest',
         'TOGGLE_HIDE_ARCHIVE_LEVEL': 'guest',
         'TOGGLE_SAFEMODE_VIEW_LEVEL': 'guest',
         # Toggle passphrase overrides
         'TOGGLE_CONTENT_SCAN_PASSPHRASE': '',
+        'TOGGLE_CONTENT_LOCK_PASSPHRASE': '',
         'TOGGLE_ARCHIVE_PASSPHRASE': '',
         'TOGGLE_SAFEMODE_PASSPHRASE': '',
         # Content scan settings
@@ -89,6 +100,11 @@ def load_config():
             if nsfw_folders_str:
                 default_config['NSFW_FOLDERS'] = [folder.strip().lower() for folder in nsfw_folders_str.split(',')]
             
+            # Parse Safe folders
+            safe_folders_str = config.get('App', 'SAFE_FOLDERS', fallback='')
+            if safe_folders_str:
+                default_config['SAFE_FOLDERS'] = [folder.strip() for folder in safe_folders_str.split(',')]
+            
             # Parse nudity threshold
             default_config['NUDITY_THRESHOLD'] = config.getfloat('App', 'NUDITY_THRESHOLD', fallback=0.5)
             
@@ -100,6 +116,7 @@ def load_config():
             # Parse toggle defaults
             default_config['SAFE_MODE_DEFAULT'] = config.getboolean('App', 'SAFE_MODE_DEFAULT', fallback=False)
             default_config['CONTENT_SCAN_DEFAULT'] = config.getboolean('App', 'CONTENT_SCAN_DEFAULT', fallback=False)
+            default_config['CONTENT_LOCK_DEFAULT'] = config.getboolean('App', 'CONTENT_LOCK_DEFAULT', fallback=False)
             default_config['HIDE_ARCHIVE_DEFAULT'] = config.getboolean('App', 'HIDE_ARCHIVE_DEFAULT', fallback=False)
             
             # Parse authentication settings
@@ -112,13 +129,24 @@ def load_config():
             default_config['FLAG_LEVEL'] = config.get('App', 'FLAG_LEVEL', fallback='guest').strip().lower()
             default_config['ARCHIVE_LEVEL'] = config.get('App', 'ARCHIVE_LEVEL', fallback='guest').strip().lower()
             
+            # Parse action passphrase overrides
+            default_config['DELETE_PASSPHRASE'] = config.get('App', 'DELETE_PASSPHRASE', fallback='').strip()
+            default_config['FLAG_PASSPHRASE'] = config.get('App', 'FLAG_PASSPHRASE', fallback='').strip()
+            default_config['ARCHIVE_PASSPHRASE'] = config.get('App', 'ARCHIVE_PASSPHRASE', fallback='').strip()
+            
+            # Parse access permission levels
+            default_config['SETTINGS_LEVEL'] = config.get('App', 'SETTINGS_LEVEL', fallback='admin').strip().lower()
+            default_config['SETTINGS_PASSPHRASE'] = config.get('App', 'SETTINGS_PASSPHRASE', fallback='').strip()
+            
             # Parse toggle permission levels
             default_config['TOGGLE_CONTENT_SCAN_LEVEL'] = config.get('App', 'TOGGLE_CONTENT_SCAN_LEVEL', fallback='guest').strip().lower()
+            default_config['TOGGLE_CONTENT_LOCK_LEVEL'] = config.get('App', 'TOGGLE_CONTENT_LOCK_LEVEL', fallback='guest').strip().lower()
             default_config['TOGGLE_HIDE_ARCHIVE_LEVEL'] = config.get('App', 'TOGGLE_HIDE_ARCHIVE_LEVEL', fallback='guest').strip().lower()
             default_config['TOGGLE_SAFEMODE_VIEW_LEVEL'] = config.get('App', 'TOGGLE_SAFEMODE_VIEW_LEVEL', fallback='guest').strip().lower()
             
             # Parse toggle passphrase overrides
             default_config['TOGGLE_CONTENT_SCAN_PASSPHRASE'] = config.get('App', 'TOGGLE_CONTENT_SCAN_PASSPHRASE', fallback='').strip()
+            default_config['TOGGLE_CONTENT_LOCK_PASSPHRASE'] = config.get('App', 'TOGGLE_CONTENT_LOCK_PASSPHRASE', fallback='').strip()
             default_config['TOGGLE_ARCHIVE_PASSPHRASE'] = config.get('App', 'TOGGLE_ARCHIVE_PASSPHRASE', fallback='').strip()
             default_config['TOGGLE_SAFEMODE_PASSPHRASE'] = config.get('App', 'TOGGLE_SAFEMODE_PASSPHRASE', fallback='').strip()
             
@@ -215,6 +243,7 @@ def get_user_level() -> str:
     """Get current user's permission level: 'guest', 'user', or 'admin'"""
     session = get_session()
     role = session.get('role')
+    # print(f"[DEBUG] get_user_level: role={role}")
     if role == 'admin':
         return 'admin'
     elif role == 'user':
@@ -230,6 +259,8 @@ def has_permission(required_level: str) -> bool:
     """
     user_level = get_user_level()
     required = required_level.lower()
+    
+    print(f"[DEBUG] has_permission check: required={required}, user_level={user_level}")
     
     # Guest level - anyone can access
     if required == 'guest':
@@ -249,25 +280,43 @@ def has_permission(required_level: str) -> bool:
 
 def can_delete() -> bool:
     """Check if user can delete files based on DELETE_LEVEL config"""
-    return has_permission(CONFIG.get('DELETE_LEVEL', 'guest'))
+    config_level = CONFIG.get('DELETE_LEVEL', 'guest')
+    print(f"[DEBUG] can_delete: config_level={config_level}")
+    
+    # Check permission level
+    if has_permission(config_level):
+        return True
+    
+    # Check if user has unlocked this action via passphrase
+    session = get_session()
+    is_unlocked = session.get('delete_unlocked', False)
+    print(f"[DEBUG] can_delete: unlocked={is_unlocked}")
+    return is_unlocked
 
 
 def can_flag() -> bool:
     """Check if user can flag files as NSFW based on FLAG_LEVEL config"""
-    return has_permission(CONFIG.get('FLAG_LEVEL', 'guest'))
+    # Check permission level
+    if has_permission(CONFIG.get('FLAG_LEVEL', 'guest')):
+        return True
+    # Check if user has unlocked this action via passphrase
+    session = get_session()
+    return session.get('flag_unlocked', False)
 
 
 def can_archive() -> bool:
     """Check if user can archive files based on ARCHIVE_LEVEL config"""
-    return has_permission(CONFIG.get('ARCHIVE_LEVEL', 'guest'))
+    # Check permission level
+    if has_permission(CONFIG.get('ARCHIVE_LEVEL', 'guest')):
+        return True
+    # Check if user has unlocked this action via passphrase
+    session = get_session()
+    return session.get('archive_unlocked', False)
 
 
 def can_toggle_content_scan() -> bool:
     """Check if user can toggle content scan based on TOGGLE_CONTENT_SCAN_LEVEL config"""
-    # Admin can always toggle
-    if is_admin():
-        return True
-    # Check permission level
+    # Check permission level (no is_admin shortcut — respects toggle level even when auth disabled)
     if has_permission(CONFIG.get('TOGGLE_CONTENT_SCAN_LEVEL', 'guest')):
         return True
     # Check if user has unlocked this toggle via passphrase
@@ -277,10 +326,7 @@ def can_toggle_content_scan() -> bool:
 
 def can_toggle_hide_archive() -> bool:
     """Check if user can toggle archive view based on TOGGLE_HIDE_ARCHIVE_LEVEL config"""
-    # Admin can always toggle
-    if is_admin():
-        return True
-    # Check permission level
+    # Check permission level (no is_admin shortcut — respects toggle level even when auth disabled)
     if has_permission(CONFIG.get('TOGGLE_HIDE_ARCHIVE_LEVEL', 'guest')):
         return True
     # Check if user has unlocked this toggle via passphrase
@@ -290,15 +336,43 @@ def can_toggle_hide_archive() -> bool:
 
 def can_toggle_safemode() -> bool:
     """Check if user can toggle safe mode based on TOGGLE_SAFEMODE_VIEW_LEVEL config"""
-    # Admin can always toggle
-    if is_admin():
-        return True
-    # Check permission level
+    # Check permission level (no is_admin shortcut — respects toggle level even when auth disabled)
     if has_permission(CONFIG.get('TOGGLE_SAFEMODE_VIEW_LEVEL', 'guest')):
         return True
     # Check if user has unlocked this toggle via passphrase
     session = get_session()
     return session.get('safemode_unlocked', False)
+
+
+def can_toggle_content_lock() -> bool:
+    """Check if user can toggle content lock based on TOGGLE_CONTENT_LOCK_LEVEL config"""
+    # Check permission level (no is_admin shortcut — respects toggle level even when auth disabled)
+    if has_permission(CONFIG.get('TOGGLE_CONTENT_LOCK_LEVEL', 'guest')):
+        return True
+    # Check if user has unlocked this toggle via passphrase
+    session = get_session()
+    return session.get('content_lock_unlocked', False)
+
+
+def can_mark_safe() -> bool:
+    """Check if user can mark files safe based on FLAG_LEVEL config"""
+    # Uses same permission as flagging
+    return can_flag()
+
+
+def can_access_settings() -> bool:
+    """Check if user can access settings based on SETTINGS_LEVEL config"""
+    config_level = CONFIG.get('SETTINGS_LEVEL', 'admin')
+    # Check permission level
+    if has_permission(config_level):
+        print(f"[DEBUG] can_access_settings: Granted via permission (level={config_level})")
+        return True
+    
+    # Check if user has unlocked this access via passphrase
+    session = get_session()
+    is_unlocked = session.get('settings_unlocked', False)
+    print(f"[DEBUG] can_access_settings: Unlocked={is_unlocked} (level={config_level})")
+    return is_unlocked
 
 
 def get_image_metadata(image_path):
@@ -362,19 +436,8 @@ def get_image_metadata(image_path):
 
 
 def is_nsfw_content(metadata, subfolder=''):
-    """Check if image metadata contains NSFW keywords or is in NSFW folder"""
-    # Check folder-based filtering
-    if subfolder and CONFIG.get('NSFW_FOLDERS'):
-        # Normalize subfolder path: convert backslashes to forward slashes and lowercase
-        subfolder_normalized = subfolder.replace('\\', '/').lower()
-        for nsfw_folder in CONFIG['NSFW_FOLDERS']:
-            nsfw_folder_lower = nsfw_folder.lower()
-            # Check if any part of the path matches the NSFW folder name
-            path_parts = subfolder_normalized.split('/')
-            if nsfw_folder_lower in path_parts:
-                return True
-    
-    # Check keyword-based filtering
+    """Check if image metadata contains NSFW keywords (keyword-based filtering only)"""
+    # Check keyword-based filtering in filename-parsed metadata
     if not metadata or not metadata.get('prompt'):
         return False
     
@@ -384,6 +447,37 @@ def is_nsfw_content(metadata, subfolder=''):
             return True
     
     return False
+
+
+def is_content_locked_file(subfolder=''):
+    """Check if file is in an NSFW folder (folder-based filtering for Content Lock)"""
+    if not subfolder:
+        return False
+    
+    subfolder_normalized = subfolder.replace('\\', '/').lower()
+    path_parts = subfolder_normalized.split('/')
+    
+    # Always check the built-in 'nsfw' folder
+    if 'nsfw' in path_parts:
+        return True
+    
+    if CONFIG.get('NSFW_FOLDERS'):
+        for nsfw_folder in CONFIG['NSFW_FOLDERS']:
+            if nsfw_folder.lower() in path_parts:
+                return True
+    
+    return False
+
+
+def is_archived_file(subfolder=''):
+    """Check if file is in the Archive folder"""
+    if not subfolder:
+        return False
+    
+    subfolder_normalized = subfolder.replace('\\', '/').lower()
+    path_parts = subfolder_normalized.split('/')
+    
+    return 'archive' in path_parts
 
 
 def scan_images():
@@ -468,6 +562,7 @@ def scan_images():
                             'mod_time': mod_time,
                             'metadata': metadata,
                             'is_nsfw': is_nsfw_content(metadata, full_subfolder),
+                            'is_content_locked': is_content_locked_file(full_subfolder),
                             'media_type': media_type  # 'image' or 'video'
                         }
                         
@@ -487,10 +582,68 @@ def scan_images():
                 latest_image_timestamp = latest_image['mod_time']
             
             print(f"[SCAN] Complete! Found {len(image_list)} media files")
+            
+            # Start background enrichment to get detailed metadata (prompt, seed, model, loras)
+            # This does NOT perform any keyword filtering/tagging, just data gathering for display.
+            threading.Thread(target=_enrich_metadata_background_task, daemon=True).start()
     
     # Always reset the flag when done (even if there's an exception)
     finally:
         scan_in_progress = False
+
+
+
+
+def _enrich_metadata_background_task():
+    """
+    Background task: extract embedded metadata (prompt, model, seed, loras) 
+    and attach it to the image objects for display purposes.
+    does NOT use this data for NSFW filtering/flagging.
+    """
+    updated = 0
+    with cache_lock:
+        # Check all images that haven't been enriched yet
+        # We can check if 'embedded_loaded' flag is missing
+        items_to_check = [img for img in image_list if not img.get('embedded_loaded', False)]
+    
+    for img in items_to_check:
+        try:
+            # unique identifier to see if we already have it in cache?
+            # extract_embedded_metadata handles caching internally based on file path
+            embedded = extract_embedded_metadata(img['path'])
+            
+            if embedded:
+                # Merge embedded logic into existing metadata
+                # We prioritize embedded data over filename-parsed data if available
+                if not img.get('metadata'):
+                    img['metadata'] = {}
+                
+                meta = img['metadata']
+                
+                # Update fields if present in embedded data
+                if embedded.get('prompt'):
+                    meta['prompt'] = embedded['prompt']
+                if embedded.get('negative_prompt'):
+                    meta['negative_prompt'] = embedded['negative_prompt']
+                if embedded.get('seed'):
+                    meta['seed'] = embedded['seed']
+                if embedded.get('model'):
+                    meta['model'] = embedded['model']
+                if embedded.get('dimensions'):
+                    meta['dimensions'] = embedded['dimensions']
+                if embedded.get('loras'):
+                    meta['loras'] = embedded['loras']
+                
+                # Mark as loaded so we don't re-scan next time
+                img['embedded_loaded'] = True
+                updated += 1
+                
+        except Exception as e:
+            # print(f"[METADATA] Error enriching {img.get('filename')}: {e}")
+            pass
+    
+    if updated > 0:
+        print(f"[METADATA] Enriched {updated} files with embedded metadata")
 
 
 class ImageChangeHandler(FileSystemEventHandler):
@@ -506,7 +659,8 @@ class ImageChangeHandler(FileSystemEventHandler):
             print(f"New media detected: {event.src_path}")
             
             # Content Scan: Check if enabled and file is NOT already in NSFW or SAFE folder
-            if content_scan_enabled and not content_scanner.should_skip_scanning(event.src_path):
+            # Also skip scanning if file is in Archive (as per user request)
+            if content_scan_enabled and not content_scanner.should_skip_scanning(event.src_path) and not is_archived_file(event.src_path):
                 offset = CONFIG.get('CONTENT_SCAN_OFFSET', 0)
                 
                 if offset <= 0:
@@ -610,6 +764,13 @@ def index():
         else:
             hide_archive = CONFIG.get('HIDE_ARCHIVE_DEFAULT', False)
         
+        # Check if content lock is enabled (cookie or config default)
+        content_lock_cookie = request.cookies.get('contentLock')
+        if content_lock_cookie is not None:
+            content_lock = content_lock_cookie == 'true'
+        else:
+            content_lock = CONFIG.get('CONTENT_LOCK_DEFAULT', False)
+        
         # Filter images by top-level subfolder if selected
         filtered_images = image_list
         if selected_subfolder:
@@ -630,19 +791,37 @@ def index():
         if safe_mode:
             filtered_images = [img for img in filtered_images if not img.get('is_nsfw', False)]
         
+        # Filter out content-locked files if content lock is enabled
+        if content_lock:
+            filtered_images = [img for img in filtered_images if not img.get('is_content_locked', False)]
+        
         # Get the hero image to display
         current_latest_image = latest_image
         
         # If filtering by media type, use the first filtered item as hero
         if media_type != 'all' and filtered_images:
             current_latest_image = filtered_images[0]
-        # Otherwise, check for safe mode
-        elif safe_mode and latest_image and latest_image.get('is_nsfw', False):
-            # Find the first non-NSFW image
-            for img in filtered_images:
-                if not img.get('is_nsfw', False):
+        # otherwise, check for safe mode, content lock, or hide archive
+        elif (safe_mode or content_lock or hide_archive) and latest_image:
+            # Check if current latest image is hidden
+            is_nsfw = latest_image.get('is_nsfw', False)
+            is_locked = latest_image.get('is_content_locked', False)
+            is_archived = is_archived_file(latest_image.get('subfolder', ''))
+            
+            is_hidden = (safe_mode and is_nsfw) or \
+                       (content_lock and is_locked) or \
+                       (hide_archive and is_archived)
+            
+            if is_hidden:
+                # Find the first visible image
+                for img in filtered_images:
+                    # We already filtered filtered_images based on settings, 
+                    # so the first one in there is guaranteed to be visible/allowed
                     current_latest_image = img
                     break
+                else:
+                    # If loop completes without break, no visible image found
+                    current_latest_image = None
         
         # Limit initial load for performance (only most recent files)
         max_initial = CONFIG['MAX_INITIAL_LOAD']
@@ -675,14 +854,37 @@ def frame():
     with cache_lock:
         # Check if safe mode is enabled
         safe_mode = request.cookies.get('safeMode') == 'true'
+        content_lock = request.cookies.get('contentLock') == 'true'
         
-        # Get the latest non-NSFW image if safe mode is enabled
+        # Get the latest non-hidden image
         current_latest_image = latest_image
-        if safe_mode and latest_image and latest_image.get('is_nsfw', False):
-            # Find the first non-NSFW image
-            filtered_images = [img for img in image_list if not img.get('is_nsfw', False)]
-            if filtered_images:
-                current_latest_image = filtered_images[0]
+        
+        # Check if hide archive is enabled (cookie or default)
+        hide_archive_cookie = request.cookies.get('hideArchive')
+        if hide_archive_cookie is not None:
+            hide_archive = hide_archive_cookie == 'true'
+        else:
+            hide_archive = CONFIG.get('HIDE_ARCHIVE_DEFAULT', False)
+
+        if (safe_mode or content_lock or hide_archive) and latest_image:
+            is_nsfw = latest_image.get('is_nsfw', False)
+            is_locked = latest_image.get('is_content_locked', False)
+            is_archived = is_archived_file(latest_image.get('subfolder', ''))
+            
+            is_hidden = (safe_mode and is_nsfw) or \
+                       (content_lock and is_locked) or \
+                       (hide_archive and is_archived)
+                       
+            if is_hidden:
+                # Find the first visible image
+                filtered_images = [img for img in image_list 
+                                 if not (safe_mode and img.get('is_nsfw', False)) and
+                                    not (content_lock and img.get('is_content_locked', False)) and
+                                    not (hide_archive and is_archived_file(img.get('subfolder', '')))]
+                if filtered_images:
+                    current_latest_image = filtered_images[0]
+                else:
+                    current_latest_image = None
         
         return render_template('frame.html', 
                               latest_image=current_latest_image,
@@ -719,6 +921,13 @@ def gallery():
             hide_archive = hide_archive_cookie == 'true'
         else:
             hide_archive = CONFIG.get('HIDE_ARCHIVE_DEFAULT', False)
+        
+        # Check if content lock is enabled (cookie or config default)
+        content_lock_cookie = request.cookies.get('contentLock')
+        if content_lock_cookie is not None:
+            content_lock = content_lock_cookie == 'true'
+        else:
+            content_lock = CONFIG.get('CONTENT_LOCK_DEFAULT', False)
         
         # Get recursive flag (default True)
         recursive = request.args.get('recursive', 'true') == 'true'
@@ -760,6 +969,10 @@ def gallery():
         # Filter out NSFW content if safe mode is enabled
         if safe_mode:
             filtered_images = [img for img in filtered_images if not img.get('is_nsfw', False)]
+        
+        # Filter out content-locked files if content lock is enabled
+        if content_lock:
+            filtered_images = [img for img in filtered_images if not img.get('is_content_locked', False)]
         
         # Parse breadcrumb path (split by / for nested folders)
         breadcrumb_parts = selected_subfolder.split('/') if selected_subfolder else []
@@ -894,6 +1107,13 @@ def load_more_images():
     else:
         hide_archive = CONFIG.get('HIDE_ARCHIVE_DEFAULT', False)
     
+    # Check if content lock is enabled (cookie or config default)
+    content_lock_cookie = request.cookies.get('contentLock')
+    if content_lock_cookie is not None:
+        content_lock = content_lock_cookie == 'true'
+    else:
+        content_lock = CONFIG.get('CONTENT_LOCK_DEFAULT', False)
+    
     # Filter images by selected subfolder
     filtered_images = image_list
     if selected_subfolder:
@@ -931,6 +1151,10 @@ def load_more_images():
     # Filter out NSFW content if safe mode is enabled
     if safe_mode:
         filtered_images = [img for img in filtered_images if not img.get('is_nsfw', False)]
+    
+    # Filter out content-locked files if content lock is enabled
+    if content_lock:
+        filtered_images = [img for img in filtered_images if not img.get('is_content_locked', False)]
     
     # Debug log for infinite scroll issues
     print("=" * 80)
@@ -1174,9 +1398,52 @@ def unflag_nsfw(filename):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/mark_safe/<path:filename>', methods=['POST'])
+def mark_safe(filename):
+    """Move a file to SAFE folder to prevent re-flagging"""
+    global image_list
+    
+    # Check permissions
+    if not can_mark_safe():
+        return jsonify({'success': False, 'error': 'Permission denied. Insufficient access level.'}), 403
+    
+    # Build file path
+    file_path = os.path.join(CONFIG['IMAGE_FOLDER'], filename)
+    
+    if not os.path.exists(file_path):
+        return jsonify({'success': False, 'error': 'File not found'}), 404
+    
+    # Check if already in SAFE folder
+    if content_scanner.is_in_safe_folder(file_path):
+        return jsonify({'success': False, 'error': 'File is already in SAFE folder'}), 400
+    
+    try:
+        # Move to SAFE folder (logic depends on whether file is flagged)
+        new_path = content_scanner.move_to_safe_folder(file_path)
+        
+        if new_path:
+            print(f"[MARK SAFE] Moved file to: {new_path}")
+            
+            # Trigger rescan to update image list
+            threading.Thread(target=scan_images, daemon=True).start()
+            
+            return jsonify({
+                'success': True, 
+                'message': 'File moved to SAFE folder',
+                'new_path': new_path
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Failed to move file'}), 500
+    
+    except Exception as e:
+        print(f"[ERROR] Failed to mark file as safe: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/image_info/<path:filename>')
 def image_info(filename):
     """Get image metadata - combines filename parsing with embedded metadata"""
+    print(f"[DEBUG] image_info requested for: {filename}")
     for img in image_list:
         if img['filename'] == filename:
             # Start with filename-based metadata
@@ -1185,8 +1452,11 @@ def image_info(filename):
             # Try to extract embedded metadata from the file
             try:
                 embedded = extract_embedded_metadata(img['path'])
+                if embedded:
+                    print(f"[DEBUG] Embedded metadata found for {filename}: {embedded.keys()}")
                 
-                # Merge embedded metadata, preferring embedded values when available
+                # Merge embedded logic into existing metadata
+                # We prioritize embedded data over filename-parsed data if available
                 if embedded.get('prompt'):
                     result['prompt'] = embedded['prompt']
                 if embedded.get('negative_prompt'):
@@ -1360,25 +1630,45 @@ def logout():
 def auth_status():
     """Get current authentication status and permissions"""
     session = get_session()
+    
+    # DEBUG: Print current config levels to console to verify load
+    print(f"[DEBUG] AUTH STATUS: delete_level={CONFIG.get('DELETE_LEVEL')}, user_level={get_user_level()}")
+    # print(f"[DEBUG] AUTH STATUS: safemode_level={CONFIG.get('TOGGLE_SAFEMODE_VIEW_LEVEL')}")
+    
     return jsonify({
         'auth_required': is_auth_required(),
         'authenticated': is_authenticated(),
         'role': session.get('role'),
+        # Action permissions
         'can_delete': can_delete(),
         'can_flag': can_flag(),
         'can_archive': can_archive(),
+        'can_mark_safe': can_mark_safe(),
+        'can_access_settings': can_access_settings(),
+        # Action Passphrase Requirements (true if auth required and passphrase exists)
+        'delete_passphrase_required': bool(CONFIG.get('DELETE_PASSPHRASE')) and not can_delete(),
+        'flag_passphrase_required': bool(CONFIG.get('FLAG_PASSPHRASE')) and not can_flag(),
+        'archive_passphrase_required': bool(CONFIG.get('ARCHIVE_PASSPHRASE')) and not can_archive(),
+        'settings_passphrase_required': bool(CONFIG.get('SETTINGS_PASSPHRASE')) and not can_access_settings(),
         # Toggle permissions
         'can_toggle_content_scan': can_toggle_content_scan(),
+        'can_toggle_content_lock': can_toggle_content_lock(),
         'can_toggle_hide_archive': can_toggle_hide_archive(),
         'can_toggle_safemode': can_toggle_safemode(),
         # Unlock states
         'content_scan_unlocked': session.get('content_scan_unlocked', False),
+        'content_lock_unlocked': session.get('content_lock_unlocked', False),
         'hide_archive_unlocked': session.get('hide_archive_unlocked', False),
         'safemode_unlocked': session.get('safemode_unlocked', False),
+        'delete_unlocked': session.get('delete_unlocked', False),
+        'flag_unlocked': session.get('flag_unlocked', False),
+        'archive_unlocked': session.get('archive_unlocked', False),
+        'settings_unlocked': session.get('settings_unlocked', False),
         # Defaults
         'safe_mode_default': CONFIG.get('SAFE_MODE_DEFAULT', False),
         'HIDE_ARCHIVE_DEFAULT': CONFIG.get('HIDE_ARCHIVE_DEFAULT', False),
-        'content_scan_default': CONFIG.get('CONTENT_SCAN_DEFAULT', False)
+        'content_scan_default': CONFIG.get('CONTENT_SCAN_DEFAULT', False),
+        'content_lock_default': CONFIG.get('CONTENT_LOCK_DEFAULT', False)
     })
 
 
@@ -1451,6 +1741,121 @@ def unlock_safemode():
         return jsonify({'success': False, 'error': 'Invalid passphrase'})
 
 
+@app.route('/unlock_content_lock', methods=['POST'])
+def unlock_content_lock():
+    """Unlock content lock toggle for this session"""
+    data = request.get_json() or {}
+    passphrase = data.get('passphrase', '').strip()
+    
+    config_pass = CONFIG.get('TOGGLE_CONTENT_LOCK_PASSPHRASE', '')
+    
+    if not config_pass:
+        return jsonify({'success': False, 'error': 'No content lock passphrase configured'})
+    
+    if passphrase == config_pass:
+        session = get_session()
+        session['content_lock_unlocked'] = True
+        session_token = session_serializer.dumps(session)
+        
+        response = make_response(jsonify({'success': True}))
+        response.set_cookie('auth_session', session_token, httponly=True, samesite='Lax')
+        return response
+    else:
+        return jsonify({'success': False, 'error': 'Invalid passphrase'})
+
+
+@app.route('/unlock_delete', methods=['POST'])
+def unlock_delete():
+    """Unlock delete action for this session"""
+    data = request.get_json() or {}
+    passphrase = data.get('passphrase', '').strip()
+    
+    config_pass = CONFIG.get('DELETE_PASSPHRASE', '')
+    
+    if not config_pass:
+        return jsonify({'success': False, 'error': 'No delete passphrase configured'})
+    
+    if passphrase == config_pass:
+        session = get_session()
+        session['delete_unlocked'] = True
+        session_token = session_serializer.dumps(session)
+        
+        response = make_response(jsonify({'success': True}))
+        response.set_cookie('auth_session', session_token, httponly=True, samesite='Lax')
+        return response
+    else:
+        return jsonify({'success': False, 'error': 'Invalid passphrase'})
+
+
+@app.route('/unlock_flag', methods=['POST'])
+def unlock_flag():
+    """Unlock flag action for this session"""
+    data = request.get_json() or {}
+    passphrase = data.get('passphrase', '').strip()
+    
+    config_pass = CONFIG.get('FLAG_PASSPHRASE', '')
+    
+    if not config_pass:
+        return jsonify({'success': False, 'error': 'No flag passphrase configured'})
+    
+    if passphrase == config_pass:
+        session = get_session()
+        session['flag_unlocked'] = True
+        session_token = session_serializer.dumps(session)
+        
+        response = make_response(jsonify({'success': True}))
+        response.set_cookie('auth_session', session_token, httponly=True, samesite='Lax')
+        return response
+    else:
+        return jsonify({'success': False, 'error': 'Invalid passphrase'})
+
+
+@app.route('/unlock_archive', methods=['POST'])
+def unlock_archive():
+    """Unlock archive action for this session"""
+    data = request.get_json() or {}
+    passphrase = data.get('passphrase', '').strip()
+    
+    config_pass = CONFIG.get('ARCHIVE_PASSPHRASE', '')
+    
+    if not config_pass:
+        return jsonify({'success': False, 'error': 'No archive passphrase configured'})
+    
+    if passphrase == config_pass:
+        session = get_session()
+        session['archive_unlocked'] = True
+        session_token = session_serializer.dumps(session)
+        
+        response = make_response(jsonify({'success': True}))
+        response.set_cookie('auth_session', session_token, httponly=True, samesite='Lax')
+        return response
+    else:
+        return jsonify({'success': False, 'error': 'Invalid passphrase'})
+
+
+@app.route('/unlock_settings', methods=['POST'])
+def unlock_settings():
+    """Unlock settings access for this session"""
+    data = request.get_json() or {}
+    passphrase = data.get('passphrase', '').strip()
+    
+    config_pass = CONFIG.get('SETTINGS_PASSPHRASE', '')
+    
+    if not config_pass:
+        return jsonify({'success': False, 'error': 'No settings passphrase configured'})
+    
+    if passphrase == config_pass:
+        session = get_session()
+        session['settings_unlocked'] = True
+        session_token = session_serializer.dumps(session)
+        
+        response = make_response(jsonify({'success': True}))
+        response.set_cookie('auth_session', session_token, httponly=True, samesite='Lax')
+        return response
+    else:
+        return jsonify({'success': False, 'error': 'Invalid passphrase'})
+
+
 # ============================================
 # Settings Routes
 # ============================================
@@ -1458,8 +1863,8 @@ def unlock_safemode():
 @app.route('/settings', methods=['GET'])
 def get_settings():
     """Get current settings (admin only)"""
-    if not is_admin():
-        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    if not can_access_settings():
+        return jsonify({'success': False, 'error': 'Settings access required'}), 403
     
     # Return all editable settings
     return jsonify({
@@ -1471,6 +1876,7 @@ def get_settings():
             # Startup Defaults
             'SAFE_MODE_DEFAULT': CONFIG.get('SAFE_MODE_DEFAULT', False),
             'CONTENT_SCAN_DEFAULT': CONFIG.get('CONTENT_SCAN_DEFAULT', False),
+            'CONTENT_LOCK_DEFAULT': CONFIG.get('CONTENT_LOCK_DEFAULT', False),
             'HIDE_ARCHIVE_DEFAULT': CONFIG.get('HIDE_ARCHIVE_DEFAULT', False),
             # Authentication
             'AUTH_ENABLED': CONFIG.get('AUTH_ENABLED', False),
@@ -1480,12 +1886,21 @@ def get_settings():
             'DELETE_LEVEL': CONFIG.get('DELETE_LEVEL', 'guest'),
             'FLAG_LEVEL': CONFIG.get('FLAG_LEVEL', 'guest'),
             'ARCHIVE_LEVEL': CONFIG.get('ARCHIVE_LEVEL', 'guest'),
+            # Action Passphrases
+            'DELETE_PASSPHRASE': CONFIG.get('DELETE_PASSPHRASE', ''),
+            'FLAG_PASSPHRASE': CONFIG.get('FLAG_PASSPHRASE', ''),
+            'ARCHIVE_PASSPHRASE': CONFIG.get('ARCHIVE_PASSPHRASE', ''),
+            # Access Permissions
+            'SETTINGS_LEVEL': CONFIG.get('SETTINGS_LEVEL', 'admin'),
+            'SETTINGS_PASSPHRASE': CONFIG.get('SETTINGS_PASSPHRASE', ''),
             # Toggle Permission Levels
             'TOGGLE_CONTENT_SCAN_LEVEL': CONFIG.get('TOGGLE_CONTENT_SCAN_LEVEL', 'guest'),
+            'TOGGLE_CONTENT_LOCK_LEVEL': CONFIG.get('TOGGLE_CONTENT_LOCK_LEVEL', 'guest'),
             'TOGGLE_HIDE_ARCHIVE_LEVEL': CONFIG.get('TOGGLE_HIDE_ARCHIVE_LEVEL', 'guest'),
             'TOGGLE_SAFEMODE_VIEW_LEVEL': CONFIG.get('TOGGLE_SAFEMODE_VIEW_LEVEL', 'guest'),
             # Toggle Passphrases
             'TOGGLE_CONTENT_SCAN_PASSPHRASE': CONFIG.get('TOGGLE_CONTENT_SCAN_PASSPHRASE', ''),
+            'TOGGLE_CONTENT_LOCK_PASSPHRASE': CONFIG.get('TOGGLE_CONTENT_LOCK_PASSPHRASE', ''),
             'TOGGLE_ARCHIVE_PASSPHRASE': CONFIG.get('TOGGLE_ARCHIVE_PASSPHRASE', ''),
             'TOGGLE_SAFEMODE_PASSPHRASE': CONFIG.get('TOGGLE_SAFEMODE_PASSPHRASE', ''),
             # Content Scan Settings
@@ -1493,7 +1908,8 @@ def get_settings():
             'NUDITY_THRESHOLD': CONFIG.get('NUDITY_THRESHOLD', 0.5),
             'NSFW_KEYWORDS': ', '.join(CONFIG.get('NSFW_KEYWORDS', [])),
             'NSFW_FOLDERS': ', '.join(CONFIG.get('NSFW_FOLDERS', [])),
-            'NSFW_LABELS': ', '.join(CONFIG.get('NSFW_LABELS', []))
+            'NSFW_LABELS': ', '.join(CONFIG.get('NSFW_LABELS', [])),
+            'SAFE_FOLDERS': ', '.join(CONFIG.get('SAFE_FOLDERS', []))
         }
     })
 
@@ -1501,8 +1917,8 @@ def get_settings():
 @app.route('/settings', methods=['POST'])
 def save_settings():
     """Save settings to config.ini (admin only)"""
-    if not is_admin():
-        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    if not can_access_settings():
+        return jsonify({'success': False, 'error': 'Settings access required'}), 403
     
     global CONFIG
     data = request.get_json() or {}
@@ -1537,7 +1953,8 @@ def save_settings():
         content_scanner.set_config(
             CONFIG.get('NSFW_KEYWORDS', []),
             CONFIG.get('NUDITY_THRESHOLD', 0.5),
-            CONFIG.get('NSFW_LABELS', [])
+            CONFIG.get('NSFW_LABELS', []),
+            CONFIG.get('SAFE_FOLDERS', ['SAFE'])
         )
         
         print(f"[Settings] Saved {len(settings)} settings to config.ini")
@@ -1828,7 +2245,8 @@ if __name__ == '__main__':
     content_scanner.set_config(
         CONFIG.get('NSFW_KEYWORDS', []),
         CONFIG.get('NUDITY_THRESHOLD', 0.5),
-        CONFIG.get('NSFW_LABELS', [])
+        CONFIG.get('NSFW_LABELS', []),
+        CONFIG.get('SAFE_FOLDERS', ['SAFE'])
     )
     
     # Initial scan

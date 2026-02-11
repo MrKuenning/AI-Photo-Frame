@@ -29,6 +29,7 @@
     <script src="{{ url_for('static', filename='js/media_filter.js') }}"></script>
     <script src="{{ url_for('static', filename='js/thumbnail_slider.js') }}"></script>
     <script src="{{ url_for('static', filename='js/content_scan.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/content_lock.js') }}"></script>
     <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
     <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
     <!-- <script src="{{ url_for('static', filename='js/keyboard_nav.js') }}"></script> -->
@@ -130,30 +131,63 @@
         </div>
     </div>
 
-    <!-- Hide Archive Unlock Modal -->
-    <div id="hide-archive-unlock-modal" class="modal" tabindex="-1" style="display: none;">
+    <!-- Hide Archive View Unlock Modal -->
+    <div id="archive-view-unlock-modal" class="modal" tabindex="-1" style="display: none;">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content"
                 style="background: var(--color-bg-tertiary); border: 1px solid var(--color-border);">
                 <div class="modal-header border-0">
-                    <h5 class="modal-title"><i class="bi bi-archive-fill me-2"></i>Unlock Hide Archive</h5>
+                    <h5 class="modal-title"><i class="bi bi-archive me-2"></i>Unlock Hide Archive</h5>
                     <button type="button" class="btn-close btn-close-white"
-                        onclick="hideArchiveViewUnlockModal()"></button>
+                        onclick="hideHideArchiveUnlockModal()"></button>
                 </div>
                 <div class="modal-body">
                     <p class="text-muted mb-3">Enter the passphrase to toggle Hide Archive.</p>
-                    <form onsubmit="handleArchiveViewUnlock(event); return false;">
+                    <form onsubmit="handleHideArchiveUnlock(event); return false;">
                         <div class="mb-3">
                             <input type="password" class="form-control" id="archive-view-passphrase"
-                                placeholder="Hide Archive passphrase" autocomplete="off" required>
+                                placeholder="Hide archive passphrase" autocomplete="off" required>
                         </div>
                         <div id="archive-view-unlock-error" class="alert alert-danger" style="display: none;"></div>
                         <div class="d-flex gap-2">
                             <button type="button" class="btn btn-secondary flex-grow-1"
-                                onclick="hideArchiveViewUnlockModal()">
+                                onclick="hideHideArchiveUnlockModal()">
                                 Cancel
                             </button>
-                            <button type="submit" class="btn btn-secondary flex-grow-1">
+                            <button type="submit" class="btn btn-warning flex-grow-1">
+                                <i class="bi bi-unlock-fill me-2"></i>Unlock
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Lock Unlock Modal -->
+    <div id="content-lock-unlock-modal" class="modal" tabindex="-1" style="display: none;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content"
+                style="background: var(--color-bg-tertiary); border: 1px solid var(--color-border);">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title"><i class="bi bi-lock me-2"></i>Unlock Content Lock</h5>
+                    <button type="button" class="btn-close btn-close-white"
+                        onclick="hideContentLockUnlockModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Enter the passphrase to toggle Content Lock.</p>
+                    <form onsubmit="handleContentLockUnlock(event); return false;">
+                        <div class="mb-3">
+                            <input type="password" class="form-control" id="content-lock-passphrase"
+                                placeholder="Content lock passphrase" autocomplete="off" required>
+                        </div>
+                        <div id="content-lock-unlock-error" class="alert alert-danger" style="display: none;"></div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-secondary flex-grow-1"
+                                onclick="hideContentLockUnlockModal()">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn btn-warning flex-grow-1">
                                 <i class="bi bi-unlock-fill me-2"></i>Unlock
                             </button>
                         </div>
@@ -216,6 +250,14 @@
                                 <small class="text-muted d-block ms-4">Scans new images using AI nudity detection and
                                     keyword matching</small>
                             </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="setting-CONTENT_LOCK_DEFAULT">
+                                <label class="form-check-label" for="setting-CONTENT_LOCK_DEFAULT">
+                                    Content Lock <small class="text-muted">- Hide specific folders</small>
+                                </label>
+                                <small class="text-muted d-block ms-4">Hides files in configured Content Lock
+                                    folders</small>
+                            </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" id="setting-HIDE_ARCHIVE_DEFAULT">
                                 <label class="form-check-label" for="setting-HIDE_ARCHIVE_DEFAULT">
@@ -232,7 +274,8 @@
                             <div class="form-check form-switch mb-3">
                                 <input class="form-check-input" type="checkbox" id="setting-AUTH_ENABLED">
                                 <label class="form-check-label" for="setting-AUTH_ENABLED">
-                                    Enable Authentication <small class="text-muted">- Require login</small>
+                                    Enable Authentication <small class="text-muted">- Disables Guest and Require
+                                        login</small>
                                 </label>
                             </div>
                             <div class="row">
@@ -247,37 +290,106 @@
                             </div>
                         </div>
 
+                        <!-- Settings Access -->
+                        <div class="settings-section mb-4">
+                            <h6 class="text-primary border-bottom pb-2 mb-3">
+                                <i class="bi bi-gear-fill me-2"></i>Settings Access
+                            </h6>
+                            <small class="text-muted d-block mb-3">Control who can open the settings menu</small>
+
+                            <div class="card bg-dark mb-3">
+                                <div class="card-body py-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <label class="form-label mb-0">Settings Menu</label>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select form-select-sm" id="setting-SETTINGS_LEVEL">
+                                                <option value="guest">Guest (Anyone)</option>
+                                                <option value="user">User (Logged in)</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="password" class="form-control form-control-sm"
+                                                id="setting-SETTINGS_PASSPHRASE" placeholder="Override passphrase">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Action Permissions -->
                         <div class="settings-section mb-4">
                             <h6 class="text-primary border-bottom pb-2 mb-3">
                                 <i class="bi bi-person-badge-fill me-2"></i>Action Permissions
                             </h6>
-                            <small class="text-muted d-block mb-3">Set minimum user level required for each
-                                action</small>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Delete Files</label>
-                                    <select class="form-select" id="setting-DELETE_LEVEL">
-                                        <option value="guest">Guest (Anyone)</option>
-                                        <option value="user">User (Logged in)</option>
-                                        <option value="admin">Admin Only</option>
-                                    </select>
+                            <small class="text-muted d-block mb-3">Set minimum user level and override passphrase for
+                                each action</small>
+
+                            <!-- Delete Files -->
+                            <div class="card bg-dark mb-3">
+                                <div class="card-body py-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <label class="form-label mb-0">Delete Files</label>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select form-select-sm" id="setting-DELETE_LEVEL">
+                                                <option value="guest">Guest (Anyone)</option>
+                                                <option value="user">User (Logged in)</option>
+                                                <option value="admin">Admin Only</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="password" class="form-control form-control-sm"
+                                                id="setting-DELETE_PASSPHRASE" placeholder="Override passphrase">
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Flag/Unflag Files</label>
-                                    <select class="form-select" id="setting-FLAG_LEVEL">
-                                        <option value="guest">Guest (Anyone)</option>
-                                        <option value="user">User (Logged in)</option>
-                                        <option value="admin">Admin Only</option>
-                                    </select>
+                            </div>
+
+                            <!-- Flag/Unflag Files -->
+                            <div class="card bg-dark mb-3">
+                                <div class="card-body py-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <label class="form-label mb-0">Flag/Unflag Files</label>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select form-select-sm" id="setting-FLAG_LEVEL">
+                                                <option value="guest">Guest (Anyone)</option>
+                                                <option value="user">User (Logged in)</option>
+                                                <option value="admin">Admin Only</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="password" class="form-control form-control-sm"
+                                                id="setting-FLAG_PASSPHRASE" placeholder="Override passphrase">
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Archive Files</label>
-                                    <select class="form-select" id="setting-ARCHIVE_LEVEL">
-                                        <option value="guest">Guest (Anyone)</option>
-                                        <option value="user">User (Logged in)</option>
-                                        <option value="admin">Admin Only</option>
-                                    </select>
+                            </div>
+
+                            <!-- Archive Files -->
+                            <div class="card bg-dark mb-3">
+                                <div class="card-body py-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <label class="form-label mb-0">Archive Files</label>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select form-select-sm" id="setting-ARCHIVE_LEVEL">
+                                                <option value="guest">Guest (Anyone)</option>
+                                                <option value="user">User (Logged in)</option>
+                                                <option value="admin">Admin Only</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="password" class="form-control form-control-sm"
+                                                id="setting-ARCHIVE_PASSPHRASE" placeholder="Override passphrase">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -300,14 +412,38 @@
                                         <div class="col-md-4">
                                             <select class="form-select form-select-sm"
                                                 id="setting-TOGGLE_CONTENT_SCAN_LEVEL">
-                                                <option value="guest">Guest</option>
-                                                <option value="user">User</option>
+                                                <option value="guest">Guest (Anyone)</option>
+                                                <option value="user">User (Logged in)</option>
                                                 <option value="admin">Admin</option>
                                             </select>
                                         </div>
                                         <div class="col-md-4">
                                             <input type="password" class="form-control form-control-sm"
                                                 id="setting-TOGGLE_CONTENT_SCAN_PASSPHRASE"
+                                                placeholder="Override passphrase">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Content Lock Toggle -->
+                            <div class="card bg-dark mb-3">
+                                <div class="card-body py-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <label class="form-label mb-0">Content Lock Toggle</label>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select form-select-sm"
+                                                id="setting-TOGGLE_CONTENT_LOCK_LEVEL">
+                                                <option value="guest">Guest (Anyone)</option>
+                                                <option value="user">User (Logged in)</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="password" class="form-control form-control-sm"
+                                                id="setting-TOGGLE_CONTENT_LOCK_PASSPHRASE"
                                                 placeholder="Override passphrase">
                                         </div>
                                     </div>
@@ -324,8 +460,8 @@
                                         <div class="col-md-4">
                                             <select class="form-select form-select-sm"
                                                 id="setting-TOGGLE_HIDE_ARCHIVE_LEVEL">
-                                                <option value="guest">Guest</option>
-                                                <option value="user">User</option>
+                                                <option value="guest">Guest (Anyone)</option>
+                                                <option value="user">User (Logged in)</option>
                                                 <option value="admin">Admin</option>
                                             </select>
                                         </div>
@@ -348,8 +484,8 @@
                                         <div class="col-md-4">
                                             <select class="form-select form-select-sm"
                                                 id="setting-TOGGLE_SAFEMODE_VIEW_LEVEL">
-                                                <option value="guest">Guest</option>
-                                                <option value="user">User</option>
+                                                <option value="guest">Guest (Anyone)</option>
+                                                <option value="user">User (Logged in)</option>
                                                 <option value="admin">Admin</option>
                                             </select>
                                         </div>
@@ -369,22 +505,14 @@
                                 <i class="bi bi-shield-fill me-2"></i>Safe Mode Settings
                             </h6>
                             <div class="alert alert-info py-2 mb-3">
-                                <small><strong>Safe Mode</strong> It uses NSFW Keywords
-                                    and NSFW Folders to identify what to hide.</small>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">NSFW Folders</label>
-                                <input type="text" class="form-control" id="setting-NSFW_FOLDERS"
-                                    placeholder="NSFW, Adult, Explicit">
-                                <small class="text-muted">Files in these folder names are hidden when Safe Mode is
-                                    ON</small>
+                                <small><strong>Safe Mode</strong> uses NSFW Keywords
+                                    to identify what to hide.</small>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">NSFW Keywords</label>
                                 <textarea class="form-control" id="setting-NSFW_KEYWORDS" rows="3"
                                     placeholder="adult, bikini, nude..."></textarea>
-                                <small class="text-muted">Comma-separated keywords checked in image metadata (Also used
-                                    by Content Scan)</small>
+                                <small class="text-muted">Comma-separated keywords checked in image metadata</small>
                             </div>
                         </div>
 
@@ -394,9 +522,23 @@
                                 <i class="bi bi-eye-fill me-2"></i>Content Scan Settings
                             </h6>
                             <div class="alert alert-warning py-2 mb-3">
-                                <small><strong>Content Scan</strong> automatically detects and flags new files. It uses
-                                    NSFW Keywords (defined in Safe Mode) and AI-based NudeNet labels to scan incoming
-                                    images.</small>
+                                <small><strong>Content Scan</strong> automatically detects and flags new files.
+                                    It uses an AI-based NudeNet to scan incoming images.
+                                    Flagged files are moved to NSFW folders.</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">NSFW Folders</label>
+                                <input type="text" class="form-control" id="setting-NSFW_FOLDERS"
+                                    placeholder="NSFW, Adult, Explicit">
+                                <small class="text-muted">Comma-separated folder names where flagged content is moved -
+                                    In addition to NSFW. Hidden by content lock.</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Safe Folders</label>
+                                <input type="text" class="form-control" id="setting-SAFE_FOLDERS" placeholder="SAFE">
+                                <small class="text-muted">Comma-separated folder names that skip further content
+                                    scanning - In addition
+                                    to SAFE</small>
                             </div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
@@ -660,23 +802,36 @@
                     <!-- Right section: Safe Mode + Fullscreen -->
                     <div class="d-flex align-items-center gap-3">
                         <!-- Safe Mode Toggle -->
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="nsfw-toggle">
-                            <label class="form-check-label" for="nsfw-toggle">Safe Mode</label>
+                        <div class="toggle-stack">
+                            <label class="toggle-label" for="nsfw-toggle">Safe Mode</label>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="nsfw-toggle">
+                            </div>
+                        </div>
+
+                        <!-- Content Lock Toggle -->
+                        <div class="toggle-stack">
+                            <label class="toggle-label" for="content-lock-toggle"> Folder Lock</label>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="content-lock-toggle">
+                            </div>
                         </div>
 
                         <!-- Content Scan Toggle -->
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="content-scan-toggle">
-                            <label class="form-check-label" for="content-scan-toggle"
-                                title="Auto-scan new images for NSFW content">Content Scan</label>
+                        <div class="toggle-stack">
+                            <label class="toggle-label" for="content-scan-toggle">Content Scan</label>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="content-scan-toggle">
+                            </div>
                         </div>
 
+
                         <!-- Hide Archive Toggle -->
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="hide-archive-toggle">
-                            <label class="form-check-label" for="hide-archive-toggle"
-                                title="Show/hide Archive folder content">Hide Archive</label>
+                        <div class="toggle-stack">
+                            <label class="toggle-label" for="hide-archive-toggle">Hide Archive</label>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="hide-archive-toggle">
+                            </div>
                         </div>
 
                         <!-- Refresh Button -->
@@ -704,6 +859,58 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Settings Unlock Modal -->
+    <div class="modal fade" id="settings-unlock-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content bg-dark text-light border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Unlock Settings</h5>
+                    <button type="button" class="btn-close btn-close-white"
+                        onclick="hideSettingsUnlockModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="handleSettingsUnlock(event)">
+                        <div class="mb-3">
+                            <label for="settings-unlock-passphrase" class="form-label">Passphrase Required</label>
+                            <input type="password" class="form-control bg-secondary text-light border-secondary"
+                                id="settings-unlock-passphrase" required>
+                        </div>
+                        <div class="alert alert-danger" id="settings-unlock-error" style="display: none;"></div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Unlock</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Unlock Modal -->
+    <div class="modal fade" id="action-unlock-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content bg-dark text-light border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title" id="action-unlock-title">Unlock Action</h5>
+                    <button type="button" class="btn-close btn-close-white" onclick="hideActionUnlockModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="handleActionUnlock(event)">
+                        <input type="hidden" id="action-unlock-target">
+                        <div class="mb-3">
+                            <label for="action-unlock-passphrase" class="form-label">Passphrase Required</label>
+                            <input type="password" class="form-control bg-secondary text-light border-secondary"
+                                id="action-unlock-passphrase" required>
+                        </div>
+                        <div class="alert alert-danger" id="action-unlock-error" style="display: none;"></div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Unlock</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Fullscreen API with cross-browser compatibility
         const fullscreenAPI = {

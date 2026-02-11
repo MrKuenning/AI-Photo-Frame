@@ -60,6 +60,7 @@ def _cleanup_temp_file(temp_path: str, original_path: str):
 # Configuration - will be set from main app
 NSFW_KEYWORDS = []
 NUDITY_THRESHOLD = 0.5  # Confidence threshold for nudity detection
+SAFE_FOLDERS = ['SAFE']  # Folders that mark content as safe (skip scanning)
 
 # Body parts that indicate NSFW content (configurable via set_config)
 NSFW_LABELS = [
@@ -71,14 +72,17 @@ NSFW_LABELS = [
 ]
 
 
-def set_config(keywords: List[str], threshold: float = 0.5, labels: List[str] = None):
+def set_config(keywords: List[str], threshold: float = 0.5, labels: List[str] = None, safe_folders: List[str] = None):
     """Set configuration from main app"""
-    global NSFW_KEYWORDS, NUDITY_THRESHOLD, NSFW_LABELS
+    global NSFW_KEYWORDS, NUDITY_THRESHOLD, NSFW_LABELS, SAFE_FOLDERS
     NSFW_KEYWORDS = [kw.lower().strip() for kw in keywords]
     NUDITY_THRESHOLD = threshold
     if labels:
         NSFW_LABELS = [label.strip().upper() for label in labels]
         print(f"[ContentScanner] NSFW labels: {', '.join(NSFW_LABELS)}")
+    if safe_folders is not None:
+        SAFE_FOLDERS = [folder.strip() for folder in safe_folders]
+        print(f"[ContentScanner] Safe folders: {', '.join(SAFE_FOLDERS)}")
 
 
 def get_detector():
@@ -326,8 +330,15 @@ def move_to_nsfw_folder(file_path: str) -> Optional[str]:
     parent_folder = os.path.dirname(file_path)
     filename = os.path.basename(file_path)
     
-    # Create NSFW subfolder
-    nsfw_folder = os.path.join(parent_folder, 'NSFW')
+    # Determine destination based on whether file is in SAFE folder
+    if is_in_safe_folder(file_path):
+        # File is in SAFE folder - move to sibling NSFW folder (one level up)
+        grandparent_folder = os.path.dirname(parent_folder)
+        nsfw_folder = os.path.join(grandparent_folder, 'NSFW')
+    else:
+        # Standard behavior: create/use NSFW subfolder in current directory
+        nsfw_folder = os.path.join(parent_folder, 'NSFW')
+        
     os.makedirs(nsfw_folder, exist_ok=True)
     
     # Destination path
@@ -358,14 +369,73 @@ def is_in_nsfw_folder(file_path: str) -> bool:
 
 def is_in_safe_folder(file_path: str) -> bool:
     """Check if file is in a SAFE folder (marked safe by user, skip scanning)"""
-    path_parts = file_path.replace('\\', '/').lower().split('/')
-    return 'safe' in path_parts
+    path_parts = file_path.replace('\\', '/').split('/')
+    # Check if any part of the path matches a safe folder name (case-insensitive)
+    for part in path_parts:
+        for safe_folder in SAFE_FOLDERS:
+            if part.lower() == safe_folder.lower():
+                return True
+    return False
 
 
 def is_in_archive_folder(file_path: str) -> bool:
     """Check if file is in an Archive folder"""
     path_parts = file_path.replace('\\', '/').lower().split('/')
     return 'archive' in path_parts
+
+
+def move_to_safe_folder(file_path: str) -> Optional[str]:
+    """
+    Move file to SAFE folder to prevent re-flagging.
+    
+    Logic:
+    - If file is in NSFW folder: move to sibling SAFE folder (one level up from NSFW)
+    - Otherwise: create SAFE subfolder in current directory and move there
+    
+    Args:
+        file_path: Path to file to move
+        
+    Returns:
+        New file path if moved, None if failed
+    """
+    if not os.path.exists(file_path):
+        print(f"[ContentScanner] ❌ File not found: {file_path}")
+        return None
+    
+    # Get file info
+    parent_folder = os.path.dirname(file_path)
+    filename = os.path.basename(file_path)
+    
+    # Determine destination based on whether file is in NSFW folder
+    if is_in_nsfw_folder(file_path):
+        # File is flagged - move to SAFE folder one level up (sibling to NSFW)
+        grandparent_folder = os.path.dirname(parent_folder)
+        safe_folder = os.path.join(grandparent_folder, 'SAFE')
+    else:
+        # File is not flagged - create SAFE subfolder in current directory
+        safe_folder = os.path.join(parent_folder, 'SAFE')
+    
+    # Create SAFE folder
+    os.makedirs(safe_folder, exist_ok=True)
+    
+    # Destination path
+    dest_path = os.path.join(safe_folder, filename)
+    
+    # Handle filename collision
+    if os.path.exists(dest_path):
+        base, ext = os.path.splitext(filename)
+        counter = 1
+        while os.path.exists(dest_path):
+            dest_path = os.path.join(safe_folder, f"{base}_{counter}{ext}")
+            counter += 1
+    
+    try:
+        shutil.move(file_path, dest_path)
+        print(f"[ContentScanner] ✅ Moved to SAFE folder: {filename}")
+        return dest_path
+    except Exception as e:
+        print(f"[ContentScanner] ❌ Error moving file: {e}")
+        return None
 
 
 def should_skip_scanning(file_path: str, skip_archive: bool = False) -> bool:

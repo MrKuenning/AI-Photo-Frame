@@ -18,6 +18,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 contentScanToggle.checked = localStorage.getItem('contentScanEnabled') === 'true';
             });
 
+        // Check permissions and set up intercept if needed
+        fetch('/auth_status')
+            .then(response => response.json())
+            .then(authData => {
+                if (!authData.can_toggle_content_scan) {
+                    // Intercept click to block unauthorized toggle
+                    contentScanToggle.addEventListener('click', function (e) {
+                        // Only intercept when turning OFF (unchecking)
+                        // Enabling (checking) is allowed for everyone
+                        if (!this.checked && !window.authState?.canToggleContentScan) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (typeof showContentScanUnlockModal === 'function') {
+                                showContentScanUnlockModal();
+                            }
+                            return false;
+                        }
+                    }, false);
+                }
+            })
+            .catch(() => { /* Ignore auth check failure */ });
+
         // Handle toggle change
         contentScanToggle.addEventListener('change', function () {
             const isEnabled = this.checked;

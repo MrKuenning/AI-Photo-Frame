@@ -290,7 +290,7 @@ def _extract_from_video(file_path):
             '-show_format', '-show_streams', file_path
         ]
         
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=5)
         
         if proc.returncode == 0:
             ffprobe_success = True

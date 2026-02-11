@@ -76,9 +76,14 @@ function setuphideArchiveIntercept(toggle) {
         // Only intercept when trying to enable (show archive content)
         if (!this.checked) {
             // Check if already unlocked
-            if (!window.authState?.hide_archive_unlocked) {
+            if (!window.authState?.hideArchiveUnlocked) {
                 e.preventDefault();
-                showhideArchiveUnlockModal();
+                // Ensure function exists before calling (it's on window)
+                if (window.showHideArchiveUnlockModal) {
+                    window.showHideArchiveUnlockModal();
+                } else {
+                    console.error('showHideArchiveUnlockModal not found');
+                }
             }
         }
     });

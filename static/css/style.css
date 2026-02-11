@@ -387,6 +387,36 @@ body::before {
     margin-left: var(--spacing-sm);
 }
 
+/* Stacked Toggle Layout */
+.toggle-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.toggle-stack .form-check {
+    padding-left: 0;
+    display: flex;
+    justify-content: center;
+}
+
+.toggle-stack .form-check-input {
+    margin-left: 0;
+    float: none;
+}
+
+.toggle-label {
+    color: var(--color-text-muted);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    white-space: nowrap;
+    line-height: 1;
+}
+
 /* ==========================================
    Subfolder Navigation
    ========================================== */
