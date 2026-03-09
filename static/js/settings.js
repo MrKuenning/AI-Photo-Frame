@@ -107,7 +107,7 @@ async function saveSettings() {
     // Collect all settings
     const settings = {};
     const settingFields = [
-        'IMAGE_FOLDER', 'MAX_INITIAL_LOAD',
+        'PORT', 'IMAGE_FOLDER', 'MAX_INITIAL_LOAD',
         'SAFE_MODE_DEFAULT', 'CONTENT_SCAN_DEFAULT', 'CONTENT_LOCK_DEFAULT', 'HIDE_ARCHIVE_DEFAULT',
         'AUTH_ENABLED', 'USER_PASSPHRASE', 'ADMIN_PASSPHRASE',
         'DELETE_LEVEL', 'FLAG_LEVEL', 'ARCHIVE_LEVEL',

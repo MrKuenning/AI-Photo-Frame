@@ -24,6 +24,7 @@ def load_config():
     
     # Default configuration
     default_config = {
+        'PORT': 5000,
         'IMAGE_FOLDER': 'E:\\AI\\Output',
         'PER_PAGE': 100,
         'MAX_INITIAL_LOAD': 100,  # Limit initial page load for performance
@@ -83,6 +84,7 @@ def load_config():
         
         if 'App' in config:
             # Load settings from config file
+            default_config['PORT'] = config.getint('App', 'PORT', fallback=default_config['PORT'])
             default_config['IMAGE_FOLDER'] = config.get('App', 'IMAGE_FOLDER', fallback=default_config['IMAGE_FOLDER'])
             default_config['HOME_THUMBNAIL_SIZE'] = config.get('App', 'HOME_THUMBNAIL_SIZE', fallback=default_config['HOME_THUMBNAIL_SIZE'])
             default_config['GALLERY_THUMBNAIL_SIZE'] = config.get('App', 'GALLERY_THUMBNAIL_SIZE', fallback=default_config['GALLERY_THUMBNAIL_SIZE'])
@@ -672,6 +674,77 @@ def _enrich_metadata_background_task():
         print(f"[METADATA] Enriched {updated} files with embedded metadata")
 
 
+def fast_track_image(file_path):
+    """
+    Instantly scans a single newly created/modified image and pushes it directly 
+    into the in-memory image_list to bypass the slow disk scan.
+    """
+    global image_list, latest_image, latest_image_timestamp
+    
+    # Supported file extensions
+    IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
+    VIDEO_EXTENSIONS = ('.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v')
+    
+    item_lower = file_path.lower()
+    is_image = item_lower.endswith(IMAGE_EXTENSIONS)
+    is_video = item_lower.endswith(VIDEO_EXTENSIONS)
+    
+    if not (is_image or is_video):
+        return
+        
+    try:
+        mod_time = os.path.getmtime(file_path)
+    except OSError:
+        return # Skip if file unsafe/removed
+        
+    filename = os.path.basename(file_path)
+    # Get relative path from the IMAGE_FOLDER
+    rel_path = os.path.relpath(os.path.dirname(file_path), CONFIG['IMAGE_FOLDER'])
+    
+    # Extract top folder and subfolder
+    if rel_path == '.':
+        top_folder = ''
+        full_subfolder = ''
+    else:
+        parts = rel_path.replace('\\', '/').split('/', 1)
+        top_folder = parts[0]
+        full_subfolder = rel_path.replace('\\', '/')
+        
+    # Get metadata
+    metadata = get_image_metadata(file_path)
+    media_type = 'image' if is_image else 'video'
+    
+    media_info = {
+        'path': file_path,
+        'filename': filename,
+        'subfolder': full_subfolder,
+        'top_folder': top_folder,
+        'mod_time': mod_time,
+        'metadata': metadata,
+        'is_nsfw': is_nsfw_content(metadata, full_subfolder),
+        'is_content_locked': is_content_locked_file(full_subfolder),
+        'media_type': media_type
+    }
+    
+    with cache_lock:
+        # Avoid duplicates: update existing if modifying
+        for idx, exist_img in enumerate(image_list):
+            if exist_img['path'] == file_path:
+                image_list[idx] = media_info
+                # Resort just in case mod time changed
+                image_list.sort(key=lambda x: x['mod_time'], reverse=True)
+                break
+        else:
+            # Insert new image in correct sorted position (usually index 0)
+            image_list.insert(0, media_info)
+            image_list.sort(key=lambda x: x['mod_time'], reverse=True)
+            
+        # Update latest media and timestamp
+        if image_list:
+            latest_image = image_list[0]
+            latest_image_timestamp = latest_image['mod_time']
+
+
 class ImageChangeHandler(FileSystemEventHandler):
     """Handler for file system events"""
     # Supported file extensions
@@ -679,47 +752,61 @@ class ImageChangeHandler(FileSystemEventHandler):
     
     # Pending scan queue for offset feature
     _pending_scan_queue = []
+    _scan_queue_lock = threading.Lock()
     
     def on_created(self, event):
         if not event.is_directory and event.src_path.lower().endswith(self.MEDIA_EXTENSIONS):
             print(f"New media detected: {event.src_path}")
             
-            # Content Scan: Check if enabled and file is NOT already in NSFW or SAFE folder
-            # Also skip scanning if file is in Archive (as per user request)
-            if content_scan_enabled and not content_scanner.should_skip_scanning(event.src_path) and not is_archived_file(event.src_path):
-                offset = CONFIG.get('CONTENT_SCAN_OFFSET', 0)
-                
-                if offset <= 0:
-                    # No offset - scan immediately
-                    try:
-                        metadata = get_image_metadata(event.src_path)
-                        if content_scanner.scan_single_file(event.src_path, metadata):
-                            print(f"[ContentScan] 📁 File moved to NSFW folder")
-                    except Exception as e:
-                        print(f"[ContentScan] ❌ Error scanning: {e}")
-                else:
-                    # Add current file to queue and scan oldest if queue is full
-                    self._pending_scan_queue.append(event.src_path)
-                    print(f"[ContentScan] ⏳ Added to queue (offset={offset}, queue={len(self._pending_scan_queue)})")
-                    
-                    # When queue exceeds offset, scan the oldest file
-                    while len(self._pending_scan_queue) > offset:
-                        file_to_scan = self._pending_scan_queue.pop(0)
-                        if os.path.exists(file_to_scan) and not content_scanner.should_skip_scanning(file_to_scan):
-                            try:
-                                metadata = get_image_metadata(file_to_scan)
-                                if content_scanner.scan_single_file(file_to_scan, metadata):
-                                    print(f"[ContentScan] 📁 File moved to NSFW folder: {file_to_scan}")
-                            except Exception as e:
-                                print(f"[ContentScan] ❌ Error scanning: {e}")
-                        else:
-                            print(f"[ContentScan] ⏭️ Skipping (not found or in NSFW/SAFE): {file_to_scan}")
-            elif content_scan_enabled:
-                print(f"[ContentScan] ⏭️ Skipping file in NSFW or SAFE folder")
+            # Fast-track it to the UI list immediately
+            fast_track_image(event.src_path)
             
-            # Run scan in background thread to avoid blocking
+            def perform_content_scan():
+                # Content Scan: Check if enabled and file is NOT already in NSFW or SAFE folder
+                # Also skip scanning if file is in Archive (as per user request)
+                if content_scan_enabled and not content_scanner.should_skip_scanning(event.src_path) and not is_archived_file(event.src_path):
+                    offset = CONFIG.get('CONTENT_SCAN_OFFSET', 0)
+                    
+                    if offset <= 0:
+                        # No offset - scan immediately
+                        try:
+                            metadata = get_image_metadata(event.src_path)
+                            if content_scanner.scan_single_file(event.src_path, metadata):
+                                print(f"[ContentScan] 📁 File moved to NSFW folder")
+                        except Exception as e:
+                            print(f"[ContentScan] ❌ Error scanning: {e}")
+                    else:
+                        with self._scan_queue_lock:
+                            # Add current file to queue 
+                            self._pending_scan_queue.append(event.src_path)
+                            print(f"[ContentScan] ⏳ Added to queue (offset={offset}, queue={len(self._pending_scan_queue)})")
+                            
+                            files_to_scan = []
+                            # When queue exceeds offset, extract the oldest files
+                            while len(self._pending_scan_queue) > offset:
+                                files_to_scan.append(self._pending_scan_queue.pop(0))
+                        
+                        # Process files outside the lock
+                        for file_to_scan in files_to_scan:
+                            if os.path.exists(file_to_scan) and not content_scanner.should_skip_scanning(file_to_scan):
+                                try:
+                                    metadata = get_image_metadata(file_to_scan)
+                                    if content_scanner.scan_single_file(file_to_scan, metadata):
+                                        print(f"[ContentScan] 📁 File moved to NSFW folder: {file_to_scan}")
+                                except Exception as e:
+                                    print(f"[ContentScan] ❌ Error scanning: {e}")
+                            else:
+                                print(f"[ContentScan] ⏭️ Skipping (not found or in NSFW/SAFE): {file_to_scan}")
+                elif content_scan_enabled:
+                    print(f"[ContentScan] ⏭️ Skipping file in NSFW or SAFE folder")
+            
+            # Run content scan in background thread to avoid blocking the websocket UI emission
+            threading.Thread(target=perform_content_scan, daemon=True).start()
+            
+            # Run full background disk scan (will effectively validate/repair list eventually)
             threading.Thread(target=scan_images, daemon=True).start()
-            # Emit event to all clients
+            
+            # Emit event to all clients immediately so UI feels responsive
             try:
                 print(f"[DEBUG] About to emit new_image event...")
                 socketio.emit('new_image', {'path': event.src_path, 'type': 'new_image'})
@@ -730,6 +817,9 @@ class ImageChangeHandler(FileSystemEventHandler):
     def on_modified(self, event):
         if not event.is_directory and event.src_path.lower().endswith(self.MEDIA_EXTENSIONS):
             print(f"Media modified: {event.src_path}")
+            # Fast-track it to the UI list immediately
+            fast_track_image(event.src_path)
+            
             # Run scan in background thread to avoid blocking
             threading.Thread(target=scan_images, daemon=True).start()
             # Emit event to all clients
@@ -742,6 +832,9 @@ class ImageChangeHandler(FileSystemEventHandler):
     def on_moved(self, event):
         if not event.is_directory and event.dest_path.lower().endswith(self.MEDIA_EXTENSIONS):
             print(f"Media moved: {event.dest_path}")
+            # Fast-track it to the UI list immediately
+            fast_track_image(event.dest_path)
+            
             # Run scan in background thread to avoid blocking
             threading.Thread(target=scan_images, daemon=True).start()
             # Emit event to all clients
@@ -1897,6 +1990,7 @@ def get_settings():
         'success': True,
         'settings': {
             # Global
+            'PORT': CONFIG.get('PORT', 5000),
             'IMAGE_FOLDER': CONFIG.get('IMAGE_FOLDER', ''),
             'MAX_INITIAL_LOAD': CONFIG.get('MAX_INITIAL_LOAD', 100),
             # Startup Defaults
@@ -2283,7 +2377,7 @@ if __name__ == '__main__':
     
     try:
         # Start Flask app with SocketIO
-        socketio.run(app, host='0.0.0.0', port=5000, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
+        socketio.run(app, host='0.0.0.0', port=CONFIG.get('PORT', 5000), debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
     except KeyboardInterrupt:
         observer.stop()
     observer.join()
