@@ -11,6 +11,13 @@ All notable changes to the AI Photo Frame application will be documented in this
 - **Global Video Diagnostics**<br>
   Added global error listeners specifically for media tags to help isolate decoding failures and provide actionable troubleshooting information in the Developer Console.
 
+- **Tri-State Logging System**<br>
+  Introduced a new "Logging Level" dropdown (Basic, Detailed, Debug) in the Global Settings menu. This synchronizes both backend Python terminal output and frontend JavaScript browser console logging to significantly reduce development noise when set to Basic.
+- **Port Collision Watchguard**<br>
+  Added an automated `psutil` interactive prompt upon server boot. If the application detects Port 5000 is occupied by a runaway/zombie python instance after a restart, it now prompts the user to cleanly execute a PID termination rather than silently failing to bind the socket.
+- **Windows Console Emoji Compliance**<br>
+  Forced `sys.stdout` encoding to `utf-8` on server startup to restore basic file-watcher emojis (✨, 📁, ❌, etc.) without triggering thread-crashing `cp1252` encoding errors inside PowerShell terminals.
+
 ## [2026-03-09]
 ### Added
 - **Configurable Server Port**<br>

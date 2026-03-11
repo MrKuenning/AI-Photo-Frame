@@ -1,8 +1,16 @@
 import os
+import sys
 import shutil
 import threading
 import configparser
 import time
+
+# Force Windows Console to handle UTF-8 emojis without crashing Eventlet threads
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_from_directory, make_response, redirect, url_for
 from flask_paginate import Pagination, get_page_parameter
@@ -12,6 +20,8 @@ from watchdog.events import FileSystemEventHandler
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from utils.metadata_extractor import extract_embedded_metadata
 import utils.content_scanner as content_scanner
+import logging
+import psutil
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", ping_timeout=60, ping_interval=25)
@@ -51,6 +61,7 @@ def load_config():
         'METADATA_EXTRACTION_DEFAULT': True,
         'CONTENT_LOCK_DEFAULT': False,
         'HIDE_ARCHIVE_DEFAULT': False,
+        'LOGGING_LEVEL': 'basic',
         'AUTH_ENABLED': False,
         'USER_PASSPHRASE': '',
         'ADMIN_PASSPHRASE': '',
@@ -122,10 +133,11 @@ def load_config():
             
             # Parse toggle defaults
             default_config['SAFE_MODE_DEFAULT'] = config.getboolean('App', 'SAFE_MODE_DEFAULT', fallback=False)
-            default_config['CONTENT_SCAN_DEFAULT'] = config.getboolean('App', 'CONTENT_SCAN_DEFAULT', fallback=False)
-            default_config['METADATA_EXTRACTION_DEFAULT'] = config.getboolean('App', 'METADATA_EXTRACTION_DEFAULT', fallback=True)
-            default_config['CONTENT_LOCK_DEFAULT'] = config.getboolean('App', 'CONTENT_LOCK_DEFAULT', fallback=False)
-            default_config['HIDE_ARCHIVE_DEFAULT'] = config.getboolean('App', 'HIDE_ARCHIVE_DEFAULT', fallback=False)
+            default_config['CONTENT_SCAN_DEFAULT'] = config.getboolean('App', 'CONTENT_SCAN_DEFAULT', fallback=default_config['CONTENT_SCAN_DEFAULT'])
+            default_config['METADATA_EXTRACTION_DEFAULT'] = config.getboolean('App', 'METADATA_EXTRACTION_DEFAULT', fallback=default_config['METADATA_EXTRACTION_DEFAULT'])
+            default_config['CONTENT_LOCK_DEFAULT'] = config.getboolean('App', 'CONTENT_LOCK_DEFAULT', fallback=default_config['CONTENT_LOCK_DEFAULT'])
+            default_config['HIDE_ARCHIVE_DEFAULT'] = config.getboolean('App', 'HIDE_ARCHIVE_DEFAULT', fallback=default_config['HIDE_ARCHIVE_DEFAULT'])
+            default_config['LOGGING_LEVEL'] = config.get('App', 'LOGGING_LEVEL', fallback=default_config['LOGGING_LEVEL']).strip().lower()
             
             # Parse authentication settings
             default_config['AUTH_ENABLED'] = config.getboolean('App', 'AUTH_ENABLED', fallback=False)
@@ -165,7 +177,7 @@ def load_config():
         
         print(f"[OK] Loaded configuration from {config_path}")
     else:
-        print(f"[WARN] Config file not found at {config_path}")
+        print(f"⚠️ Config file not found at {config_path}")
         config_needs_saving = True
         
     # Check if image folder exists
@@ -307,7 +319,8 @@ def has_permission(required_level: str) -> bool:
     user_level = get_user_level()
     required = required_level.lower()
     
-    print(f"[DEBUG] has_permission check: required={required}, user_level={user_level}")
+    if CONFIG.get('LOGGING_LEVEL') == 'debug':
+        print(f"[DEBUG] has_permission check: required={required}, user_level={user_level}")
     
     # Guest level - anyone can access
     if required == 'guest':
@@ -328,7 +341,8 @@ def has_permission(required_level: str) -> bool:
 def can_delete() -> bool:
     """Check if user can delete files based on DELETE_LEVEL config"""
     config_level = CONFIG.get('DELETE_LEVEL', 'guest')
-    print(f"[DEBUG] can_delete: config_level={config_level}")
+    if CONFIG.get('LOGGING_LEVEL') == 'debug':
+        print(f"[DEBUG] can_delete: config_level={config_level}")
     
     # Check permission level
     if has_permission(config_level):
@@ -337,7 +351,8 @@ def can_delete() -> bool:
     # Check if user has unlocked this action via passphrase
     session = get_session()
     is_unlocked = session.get('delete_unlocked', False)
-    print(f"[DEBUG] can_delete: unlocked={is_unlocked}")
+    if CONFIG.get('LOGGING_LEVEL') == 'debug':
+        print(f"[DEBUG] can_delete: unlocked={is_unlocked}")
     return is_unlocked
 
 
@@ -423,13 +438,15 @@ def can_access_settings() -> bool:
     config_level = CONFIG.get('SETTINGS_LEVEL', 'admin')
     # Check permission level
     if has_permission(config_level):
-        print(f"[DEBUG] can_access_settings: Granted via permission (level={config_level})")
+        if CONFIG.get('LOGGING_LEVEL') == 'debug':
+            print(f"[DEBUG] can_access_settings: Granted via permission (level={config_level})")
         return True
     
     # Check if user has unlocked this access via passphrase
     session = get_session()
     is_unlocked = session.get('settings_unlocked', False)
-    print(f"[DEBUG] can_access_settings: Unlocked={is_unlocked} (level={config_level})")
+    if CONFIG.get('LOGGING_LEVEL') == 'debug':
+        print(f"[DEBUG] can_access_settings: Unlocked={is_unlocked} (level={config_level})")
     return is_unlocked
 
 
@@ -544,21 +561,24 @@ def scan_images():
     
     # Prevent concurrent scans
     if scan_in_progress:
-        print("[FILE-INDEX] Directory sync already in progress, skipping...")
+        if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+            print("🗂️ [FILE-INDEX] Directory sync already in progress, skipping...")
         return
     
     # Debounce: Don't scan more than once per second
     import time
     current_time = time.time()
     if current_time - last_scan_time < 1.0:
-        print("[FILE-INDEX] Directory sync requested too soon, debouncing...")
+        if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+            print("🗂️ [FILE-INDEX] Directory sync requested too soon, debouncing...")
         return
     
     scan_in_progress = True
     last_scan_time = current_time
     
     try:
-        print(f"[FILE-INDEX] Starting directory sync of {CONFIG['IMAGE_FOLDER']}...")
+        if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+            print(f"🗂️ [FILE-INDEX] Starting directory sync of {CONFIG['IMAGE_FOLDER']}...")
         
         # Supported file extensions
         IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
@@ -575,7 +595,7 @@ def scan_images():
                 if os.path.isdir(item_path):
                     temp_subfolders.append(item)
         except Exception as e:
-            print(f"[FILE-INDEX] Error listing top folders: {e}")
+            print(f"🗂️ [FILE-INDEX] Error listing top folders: {e}")
         
         # Recursive function to scan all media files in all subfolder levels
         def scan_folder(folder_path, top_folder):
@@ -633,7 +653,7 @@ def scan_images():
                         
                         temp_image_list.append(media_info)
             except Exception as e:
-                print(f"[FILE-INDEX] Error syncing folder {folder_path}: {e}")
+                print(f"🗂️ [FILE-INDEX] Error syncing folder {folder_path}: {e}")
         
         # Scan all top-level subfolders recursively
         for subfolder in temp_subfolders:
@@ -653,14 +673,15 @@ def scan_images():
                 latest_image = image_list[0]
                 latest_image_timestamp = latest_image['mod_time']
                 
-            print(f"[FILE-INDEX] Complete! Found {len(image_list)} media files")
+            if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+                print(f"🗂️ [FILE-INDEX] Complete! Found {len(image_list)} media files")
             
             # Start background enrichment to get detailed metadata (prompt, seed, model, loras)
             # This does NOT perform any keyword filtering/tagging, just data gathering for display.
             threading.Thread(target=_enrich_metadata_background_task, daemon=True).start()
     
     except Exception as e:
-        print(f"[FILE-INDEX] Fatal error during sync: {e}")
+        print(f"🗂️ [FILE-INDEX] Fatal error during sync: {e}")
     
     # Always reset the flag when done (even if there's an exception)
     finally:
@@ -726,11 +747,12 @@ def _enrich_metadata_background_task():
                 updated += 1
                 
         except Exception as e:
-            # print(f"[METADATA] Error enriching {img.get('filename')}: {e}")
+            # print(f"🏷️ [METADATA] Error enriching {img.get('filename')}: {e}")
             pass
     
     if updated > 0:
-        print(f"[METADATA] Enriched {updated} files with embedded metadata")
+        if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+            print(f"🏷️ [METADATA] Enriched {updated} files with embedded metadata")
 
 
 def fast_track_image(file_path):
@@ -815,7 +837,7 @@ class ImageChangeHandler(FileSystemEventHandler):
     
     def on_created(self, event):
         if not event.is_directory and event.src_path.lower().endswith(self.MEDIA_EXTENSIONS):
-            print(f"New media detected: {event.src_path}")
+            print(f"✨ New media detected: {event.src_path}")
             
             # Fast-track it to the UI list immediately
             fast_track_image(event.src_path)
@@ -838,7 +860,8 @@ class ImageChangeHandler(FileSystemEventHandler):
                         with self._scan_queue_lock:
                             # Add current file to queue 
                             self._pending_scan_queue.append(event.src_path)
-                            print(f"[ContentScan] ⏳ Added to queue (offset={offset}, queue={len(self._pending_scan_queue)})")
+                            if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+                                print(f"[ContentScan] ⏳ Added to queue (offset={offset}, queue={len(self._pending_scan_queue)})")
                             
                             files_to_scan = []
                             # When queue exceeds offset, extract the oldest files
@@ -855,9 +878,11 @@ class ImageChangeHandler(FileSystemEventHandler):
                                 except Exception as e:
                                     print(f"[ContentScan] ❌ Error scanning: {e}")
                             else:
-                                print(f"[ContentScan] ⏭️ Skipping (not found or in NSFW/SAFE): {file_to_scan}")
+                                if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+                                    print(f"[ContentScan] ⏭️ Skipping (not found or in NSFW/SAFE): {file_to_scan}")
                 elif content_scan_enabled:
-                    print(f"[ContentScan] ⏭️ Skipping file in NSFW or SAFE folder")
+                    if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+                        print(f"[ContentScan] ⏭️ Skipping file in NSFW or SAFE folder")
             
             # Run content scan in background thread to avoid blocking the websocket UI emission
             threading.Thread(target=perform_content_scan, daemon=True).start()
@@ -867,15 +892,18 @@ class ImageChangeHandler(FileSystemEventHandler):
             
             # Emit event to all clients immediately so UI feels responsive
             try:
-                print(f"[DEBUG] About to emit new_image event...")
+                if CONFIG.get('LOGGING_LEVEL') == 'debug':
+                    print(f"[DEBUG] About to emit new_image event...")
                 socketio.emit('new_image', {'path': event.src_path, 'type': 'new_image'})
-                print(f"[WebSocket] ✅ Emitted 'new_image' event successfully")
+                if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+                    print(f"[WebSocket] [OK] Emitted 'new_image' event successfully")
             except Exception as e:
                 print(f"[WebSocket] ❌ Error emitting event: {e}")
     
     def on_modified(self, event):
         if not event.is_directory and event.src_path.lower().endswith(self.MEDIA_EXTENSIONS):
-            print(f"Media modified: {event.src_path}")
+            if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+                print(f"Media modified: {event.src_path}")
             # Fast-track it to the UI list immediately
             fast_track_image(event.src_path)
             
@@ -884,7 +912,8 @@ class ImageChangeHandler(FileSystemEventHandler):
             # Emit event to all clients
             try:
                 socketio.emit('new_image', {'path': event.src_path, 'type': 'new_image'})
-                print(f"[WebSocket] ✅ Emitted 'new_image' event successfully")
+                if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+                    print(f"[WebSocket] [OK] Emitted 'new_image' event successfully")
             except Exception as e:
                 print(f"[WebSocket] ❌ Error emitting event: {e}")
     
@@ -899,7 +928,8 @@ class ImageChangeHandler(FileSystemEventHandler):
             # Emit event to all clients
             try:
                 socketio.emit('new_image', {'path': event.dest_path, 'type': 'new_image'})
-                print(f"[WebSocket] ✅ Emitted 'new_image' event successfully")
+                if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+                    print(f"[WebSocket] [OK] Emitted 'new_image' event successfully")
             except Exception as e:
                 print(f"[WebSocket] ❌ Error emitting event: {e}")
 
@@ -1335,11 +1365,12 @@ def load_more_images():
         filtered_images = [img for img in filtered_images if not img.get('is_content_locked', False)]
     
     # Debug log for infinite scroll issues
-    print("=" * 80)
-    print(f"[LOAD MORE] offset={offset}, filtered_count={len(filtered_images)}, safe_mode={safe_mode}")
-    print(f"[LOAD MORE] subfolder='{selected_subfolder}', media_type='{media_type}', recursive={recursive}")
-    print(f"[LOAD MORE] batch will be [{offset}:{offset + batch_size}]")
-    print("=" * 80)
+    if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+        print("=" * 80)
+        print(f"[LOAD MORE] offset={offset}, filtered_count={len(filtered_images)}, safe_mode={safe_mode}")
+        print(f"[LOAD MORE] subfolder='{selected_subfolder}', media_type='{media_type}', recursive={recursive}")
+        print(f"[LOAD MORE] batch will be [{offset}:{offset + batch_size}]")
+        print("=" * 80)
     
     # Get batch of images
     batch_images = filtered_images[offset:offset + batch_size]
@@ -1462,7 +1493,7 @@ def delete_image(filename):
         
         # Delete the file
         os.remove(file_path)
-        print(f"[DELETE] Deleted file: {file_path}")
+        print(f"🗑️ [DELETE] Deleted file: {file_path}")
         
         # Remove from image_list
         with cache_lock:
@@ -1480,7 +1511,7 @@ def delete_image(filename):
         return jsonify({'success': True, 'message': 'File deleted successfully'})
     
     except Exception as e:
-        print(f"[ERROR] Failed to delete file: {e}")
+        print(f"❌ Failed to delete file: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1508,7 +1539,7 @@ def flag_nsfw(filename):
         new_path = content_scanner.move_to_nsfw_folder(file_path)
         
         if new_path:
-            print(f"[FLAG NSFW] Moved file to: {new_path}")
+            print(f"🟥 [FLAG NSFW] Moved file to: {new_path}")
             
             # Trigger rescan to update image list
             threading.Thread(target=scan_images, daemon=True).start()
@@ -1522,7 +1553,7 @@ def flag_nsfw(filename):
             return jsonify({'success': False, 'error': 'Failed to move file'}), 500
     
     except Exception as e:
-        print(f"[ERROR] Failed to flag file as NSFW: {e}")
+        print(f"❌ Failed to flag file as NSFW: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1565,7 +1596,7 @@ def unflag_nsfw(filename):
         # Move file
         import shutil
         shutil.move(file_path, dest_path)
-        print(f"[UNFLAG NSFW] Moved file to: {dest_path}")
+        print(f"🟩 [UNFLAG NSFW] Moved file to: {dest_path}")
         
         # Trigger rescan to update image list
         threading.Thread(target=scan_images, daemon=True).start()
@@ -1577,7 +1608,7 @@ def unflag_nsfw(filename):
         })
     
     except Exception as e:
-        print(f"[ERROR] Failed to unflag file: {e}")
+        print(f"❌ Failed to unflag file: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1605,7 +1636,7 @@ def mark_safe(filename):
         new_path = content_scanner.move_to_safe_folder(file_path)
         
         if new_path:
-            print(f"[MARK SAFE] Moved file to: {new_path}")
+            print(f"🟩 [MARK SAFE] Moved file to: {new_path}")
             
             # Trigger rescan to update image list
             threading.Thread(target=scan_images, daemon=True).start()
@@ -1619,14 +1650,15 @@ def mark_safe(filename):
             return jsonify({'success': False, 'error': 'Failed to move file'}), 500
     
     except Exception as e:
-        print(f"[ERROR] Failed to mark file as safe: {e}")
+        print(f"❌ Failed to mark file as safe: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/image_info/<path:filename>')
 def image_info(filename):
     """Get image metadata - combines filename parsing with embedded metadata"""
-    print(f"[DEBUG] image_info requested for: {filename}")
+    if CONFIG.get('LOGGING_LEVEL') == 'debug':
+        print(f"[DEBUG] image_info requested for: {filename}")
     for img in image_list:
         if img['filename'] == filename:
             # Start with filename-based metadata
@@ -1637,7 +1669,8 @@ def image_info(filename):
                 if metadata_extraction_enabled:
                     embedded = extract_embedded_metadata(img['path'])
                     if embedded:
-                        print(f"[DEBUG] Embedded metadata found for {filename}: {embedded.keys()}")
+                        if CONFIG.get('LOGGING_LEVEL') == 'debug':
+                            print(f"[DEBUG] Embedded metadata found for {filename}: {embedded.keys()}")
                     
                     # Merge embedded logic into existing metadata
                     # We prioritize embedded data over filename-parsed data if available
@@ -1654,7 +1687,7 @@ def image_info(filename):
                     if embedded.get('loras'):
                         result['loras'] = embedded['loras']
             except Exception as e:
-                print(f"[METADATA] Error extracting embedded metadata: {e}")
+                print(f"🏷️ [METADATA] Error extracting embedded metadata: {e}")
             
             return jsonify(result)
     return jsonify({})
@@ -1815,13 +1848,14 @@ def auth_status():
     """Get current authentication status and permissions"""
     session = get_session()
     
-    # DEBUG: Print current config levels to console to verify load
-    print(f"[DEBUG] AUTH STATUS: delete_level={CONFIG.get('DELETE_LEVEL')}, user_level={get_user_level()}")
+    if CONFIG.get('LOGGING_LEVEL') == 'debug':
+        print(f"[DEBUG] AUTH STATUS: delete_level={CONFIG.get('DELETE_LEVEL')}, user_level={get_user_level()}")
     # print(f"[DEBUG] AUTH STATUS: safemode_level={CONFIG.get('TOGGLE_SAFEMODE_VIEW_LEVEL')}")
     
     return jsonify({
         'auth_required': is_auth_required(),
         'authenticated': is_authenticated(),
+        'logging_level': CONFIG.get('LOGGING_LEVEL', 'basic'),
         'role': session.get('role'),
         # Action permissions
         'can_delete': can_delete(),
@@ -2105,6 +2139,7 @@ def get_settings():
             # Access Permissions
             'SETTINGS_LEVEL': CONFIG.get('SETTINGS_LEVEL', 'admin'),
             'SETTINGS_PASSPHRASE': CONFIG.get('SETTINGS_PASSPHRASE', ''),
+            'LOGGING_LEVEL': CONFIG.get('LOGGING_LEVEL', 'basic'),
             # Toggle Permission Levels
             'TOGGLE_CONTENT_SCAN_LEVEL': CONFIG.get('TOGGLE_CONTENT_SCAN_LEVEL', 'guest'),
             'TOGGLE_METADATA_EXTRACTION_LEVEL': CONFIG.get('TOGGLE_METADATA_EXTRACTION_LEVEL', 'guest'),
@@ -2168,10 +2203,12 @@ def save_settings():
             CONFIG.get('NSFW_KEYWORDS', []),
             CONFIG.get('NUDITY_THRESHOLD', 0.5),
             CONFIG.get('NSFW_LABELS', []),
-            CONFIG.get('SAFE_FOLDERS', ['SAFE'])
+            CONFIG.get('SAFE_FOLDERS', ['SAFE']),
+            logging_level=CONFIG.get('LOGGING_LEVEL', 'basic')
         )
         
-        print(f"[Settings] Saved {len(settings)} settings to config.ini")
+        if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+            print(f"[Settings] Saved {len(settings)} settings to config.ini")
         return jsonify({'success': True, 'message': 'Settings saved successfully'})
     
     except Exception as e:
@@ -2415,7 +2452,7 @@ def archive_files():
                     print(f"[Archive]   Moving entire folder...")
                     shutil.move(src_path, dest_path)
                 moved += 1
-                print(f"[Archive] ✅ Moved folder: {folder_name}")
+                print(f"[Archive] [OK] Moved folder: {folder_name}")
             except Exception as e:
                 print(f"[Archive] ❌ Error moving folder {folder_name}: {e}")
                 import traceback
@@ -2463,7 +2500,8 @@ def archive_files():
         
         # Rescan image list after moving files
         scan_images()
-        print(f"[Archive] ✅ Archive complete! Moved {moved} items.")
+        if CONFIG.get('LOGGING_LEVEL') in ('detailed', 'debug'):
+            print(f"[Archive] [OK] Archive complete! Moved {moved} items.")
     
     threading.Thread(target=run_archive, daemon=True).start()
     
@@ -2487,8 +2525,18 @@ if __name__ == '__main__':
         CONFIG.get('NSFW_KEYWORDS', []),
         CONFIG.get('NUDITY_THRESHOLD', 0.5),
         CONFIG.get('NSFW_LABELS', []),
-        CONFIG.get('SAFE_FOLDERS', ['SAFE'])
+        CONFIG.get('SAFE_FOLDERS', ['SAFE']),
+        logging_level=CONFIG.get('LOGGING_LEVEL', 'basic')
     )
+    
+    # Configure Werkzeug Logger
+    werkzeug_logger = logging.getLogger('werkzeug')
+    if CONFIG.get('LOGGING_LEVEL', 'basic') == 'basic':
+        werkzeug_logger.disabled = True
+        app.logger.disabled = True
+    else:
+        werkzeug_logger.disabled = False
+        werkzeug_logger.setLevel(logging.INFO)
     
     # Initial scan
     scan_images()
@@ -2496,9 +2544,63 @@ if __name__ == '__main__':
     # Start file system observer
     observer = start_observer()
     
+    port = CONFIG.get('PORT', 5000)
+    
+    # Check for port conflict and offer to kill blocking process
+    try:
+        conflict_pid = None
+        conflict_name = None
+        for conn in psutil.net_connections(kind='inet'):
+            if conn.laddr.port == port and conn.status == 'LISTEN':
+                conflict_pid = conn.pid
+                try:
+                    conflict_name = psutil.Process(conflict_pid).name()
+                except psutil.NoSuchProcess:
+                    conflict_name = "Unknown"
+                break
+                
+        if conflict_pid:
+            print(f"\n[⚠️ PORT CONFLICT] Port {port} is currently in use by PID {conflict_pid} ({conflict_name}).")
+            user_input = input(f"Would you like to force close this process to start the server? [y/N]: ")
+            if user_input.lower().strip() == 'y':
+                print(f"🔄 Terminating PID {conflict_pid}...")
+                try:
+                    psutil.Process(conflict_pid).terminate()
+                    psutil.Process(conflict_pid).wait(timeout=5)
+                    print(f"✅ Successfully terminated PID {conflict_pid}.")
+                    
+                    # Wait for the OS to fully release the socket (TIME_WAIT state)
+                    max_wait = 10
+                    for loop in range(max_wait):
+                        port_free = True
+                        for conn in psutil.net_connections(kind='inet'):
+                            if conn.laddr.port == port and conn.status == 'LISTEN':
+                                port_free = False
+                                break
+                        if port_free:
+                            break
+                        time.sleep(1)
+                        
+                    if not port_free:
+                        print(f"⚠️ Warning: OS hasn't fully released port {port} yet. Startup might fail.")
+                    else:
+                        print(f"✅ Port {port} released and ready.")
+                        
+                except Exception as e:
+                    print(f"❌ Failed to terminate process: {e}")
+                    print("You may need to close it manually. The server will likely fail to start.")
+            else:
+                print("Proceeding anyway. The server will likely crash with an OSError.")
+    except Exception as e:
+        print(f"[DEBUG] Port check error: {e}")
+    
     try:
         # Start Flask app with SocketIO
-        socketio.run(app, host='0.0.0.0', port=CONFIG.get('PORT', 5000), debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
+        show_logs = (CONFIG.get('LOGGING_LEVEL', 'basic') != 'basic')
+        port_num = CONFIG.get('PORT', 5000)
+        print(f"🚀 Server successfully started on http://0.0.0.0:{port_num} (Press CTRL+C to quit)")
+        socketio.run(app, host='0.0.0.0', port=port_num, debug=True, use_reloader=False, allow_unsafe_werkzeug=True, log_output=show_logs)
     except KeyboardInterrupt:
+        print("\n[Shutdown] Stopping file system observer...")
         observer.stop()
     observer.join()

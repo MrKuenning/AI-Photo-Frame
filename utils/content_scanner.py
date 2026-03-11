@@ -72,17 +72,19 @@ NSFW_LABELS = [
 ]
 
 
-def set_config(keywords: List[str], threshold: float = 0.5, labels: List[str] = None, safe_folders: List[str] = None):
+def set_config(keywords: List[str], threshold: float = 0.5, labels: List[str] = None, safe_folders: List[str] = None, logging_level: str = 'basic'):
     """Set configuration from main app"""
     global NSFW_KEYWORDS, NUDITY_THRESHOLD, NSFW_LABELS, SAFE_FOLDERS
     NSFW_KEYWORDS = [kw.lower().strip() for kw in keywords]
     NUDITY_THRESHOLD = threshold
     if labels:
         NSFW_LABELS = [label.strip().upper() for label in labels]
-        print(f"[ContentScanner] NSFW labels: {', '.join(NSFW_LABELS)}")
+        if logging_level in ('detailed', 'debug'):
+            print(f"[ContentScanner] NSFW labels: {', '.join(NSFW_LABELS)}")
     if safe_folders is not None:
         SAFE_FOLDERS = [folder.strip() for folder in safe_folders]
-        print(f"[ContentScanner] Safe folders: {', '.join(SAFE_FOLDERS)}")
+        if logging_level in ('detailed', 'debug'):
+            print(f"[ContentScanner] Safe folders: {', '.join(SAFE_FOLDERS)}")
 
 
 def get_detector():

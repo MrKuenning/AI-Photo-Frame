@@ -40,6 +40,12 @@ async function checkAuthStatus() {
         const response = await fetch('/auth_status');
         const data = await response.json();
 
+        // Apply server logging level to global logger and flush buffer
+        if (window.appConfig && data.logging_level) {
+            window.appConfig.loggingLevel = data.logging_level;
+            if (window.flushLogs) window.flushLogs();
+        }
+
         window.authState = {
             authRequired: data.auth_required,
             authenticated: data.authenticated,
