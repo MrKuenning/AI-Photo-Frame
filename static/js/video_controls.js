@@ -5,6 +5,22 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initialize custom controls for all hero videos
     initCustomVideoControls();
 
+    // Global listener for video decode/loading errors to aid troubleshooting
+    window.addEventListener('error', function(e) {
+        if (e.target && (e.target.tagName === 'VIDEO' || e.target.tagName === 'SOURCE')) {
+            const mediaUrl = e.target.src || (e.target.parentElement && e.target.parentElement.src) || 'unknown URL';
+            console.error('[VIDEO DIAGNOSTICS] Media playback error on URL:', mediaUrl);
+            console.error('[VIDEO DIAGNOSTICS] Error message:', e.target.error || e.message || 'No direct message');
+            console.dir(e); // Dump the raw event for inspection
+            if (e.target.error) {
+                console.error('[VIDEO DIAGNOSTICS] Code:', e.target.error.code, 'Details:', e.target.error.message);
+            }
+            if (e.target.tagName === 'SOURCE' && e.target.parentElement) {
+                 console.error('[VIDEO DIAGNOSTICS] Parent Video error state:', e.target.parentElement.error);
+            }
+        }
+    }, true); // use capture phase because media errors don't bubble
+
     // Watch for dynamically added videos
     const observer = new MutationObserver(function (mutations) {
         mutations.forEach(function (mutation) {

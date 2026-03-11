@@ -252,11 +252,20 @@ document.addEventListener('DOMContentLoaded', function () {
         // Create appropriate media element
         if (mediaType === 'video') {
             const videoElement = document.createElement('video');
-            videoElement.src = url;
             videoElement.controls = true;
             videoElement.autoplay = true;
             videoElement.loop = true;
+            videoElement.playsInline = true;
+            videoElement.setAttribute('playsinline', '');
+            videoElement.setAttribute('webkit-playsinline', '');
             videoElement.className = 'hero-image';
+            videoElement.onerror = function() { console.error('Video Error in Index Navigation:', this.error); };
+            
+            const sourceElement = document.createElement('source');
+            sourceElement.src = url;
+            sourceElement.type = 'video/mp4';
+            videoElement.appendChild(sourceElement);
+            
             heroContainer.appendChild(videoElement);
         } else {
             const imgElement = document.createElement('img');

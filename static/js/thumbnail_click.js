@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Create media element based on type
         let mediaElement;
         if (mediaType === 'video') {
-            mediaElement = `<video src="${mediaUrl}" controls class="hero-image" preload="metadata"></video>`;
+            mediaElement = `<video controls class="hero-image" preload="metadata" onerr="console.error('Video Error on Thumbnail Click:', this.error)"><source src="${mediaUrl}" type="video/mp4"></video>`;
         } else {
             mediaElement = `<img src="${mediaUrl}" alt="Selected Media" class="hero-image">`;
         }

@@ -1403,7 +1403,7 @@ def serve_image(filename):
     # Check if this is a video file
     is_video = mimetype and mimetype.startswith('video/')
     
-    # For videos, support range requests (required for iOS Safari)
+    # For videos, support range requests (required for iOS Safari and robust Chrome playback)
     if is_video:
         file_size = os.path.getsize(full_file_path)
         range_header = request.headers.get('Range', None)
@@ -1425,16 +1425,21 @@ def serve_image(filename):
             response.headers.add('Content-Range', f'bytes {start}-{end}/{file_size}')
             response.headers.add('Accept-Ranges', 'bytes')
             response.headers.add('Content-Length', str(length))
+            response.headers.add('X-Content-Type-Options', 'nosniff')
+            response.headers.add('Cache-Control', 'no-cache, must-revalidate')
             return response
         else:
             # No range request, send full file with range support headers
             response = send_from_directory(full_dir_path, actual_filename, mimetype=mimetype)
             response.headers.add('Accept-Ranges', 'bytes')
             response.headers.add('Content-Length', str(file_size))
+            response.headers.add('X-Content-Type-Options', 'nosniff')
             return response
     else:
         # For images, use standard serving
-        return send_from_directory(full_dir_path, actual_filename, mimetype=mimetype)
+        response = send_from_directory(full_dir_path, actual_filename, mimetype=mimetype)
+        response.headers.add('X-Content-Type-Options', 'nosniff')
+        return response
 
 
 

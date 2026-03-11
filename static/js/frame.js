@@ -39,8 +39,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (newMedia.tagName !== currentMedia.tagName) {
                                 currentMedia.replaceWith(newMedia.cloneNode(true));
                             } else {
-                                // Same type, just update the src
-                                currentMedia.src = newMedia.src;
+                                // Same type
+                                if (currentMedia.tagName === 'VIDEO') {
+                                    const sourceEl = currentMedia.querySelector('source') || document.createElement('source');
+                                    sourceEl.src = newMedia.querySelector('source') ? newMedia.querySelector('source').src : newMedia.src;
+                                    sourceEl.type = 'video/mp4';
+                                    if (!currentMedia.querySelector('source')) {
+                                        currentMedia.appendChild(sourceEl);
+                                    }
+                                    currentMedia.load();
+                                } else {
+                                    currentMedia.src = newMedia.src;
+                                }
                             }
 
                             // Update data attributes

@@ -5,7 +5,8 @@ function createMediaElement(mediaInfo) {
 
     if (media_type === 'video') {
         return `
-            <video src="${mediaUrl}" controls preload="metadata" class="thumbnail">
+            <video controls preload="metadata" class="thumbnail" onerr="console.error('Video Error in MediaHelper:', this.error)">
+                <source src="${mediaUrl}" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
             <div class="media-type-badge video">

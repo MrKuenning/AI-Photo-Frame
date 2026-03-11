@@ -37,9 +37,19 @@ document.addEventListener('DOMContentLoaded', function () {
                             if (newMedia.tagName !== currentMedia.tagName) {
                                 currentMedia.replaceWith(newMedia.cloneNode(true));
                             } else {
-                                // Same type, just update the src
-                                currentMedia.src = newMedia.src;
-                                currentMedia.alt = newMedia.alt;
+                                // Same type
+                                if (currentMedia.tagName === 'VIDEO') {
+                                    const sourceEl = currentMedia.querySelector('source') || document.createElement('source');
+                                    sourceEl.src = newMedia.querySelector('source') ? newMedia.querySelector('source').src : newMedia.src;
+                                    sourceEl.type = 'video/mp4';
+                                    if (!currentMedia.querySelector('source')) {
+                                        currentMedia.appendChild(sourceEl);
+                                    }
+                                    currentMedia.load(); // necessary to apply new source
+                                } else {
+                                    currentMedia.src = newMedia.src;
+                                    currentMedia.alt = newMedia.alt;
+                                }
                             }
 
                             // Update data attributes
@@ -91,7 +101,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                 // Create appropriate media element
                                 if (mediaType === 'video') {
                                     const videoElement = document.createElement('video');
-                                    videoElement.src = url;
                                     videoElement.controls = true;
                                     videoElement.autoplay = true;
                                     videoElement.loop = true;
@@ -99,6 +108,13 @@ document.addEventListener('DOMContentLoaded', function () {
                                     videoElement.setAttribute('playsinline', '');
                                     videoElement.setAttribute('webkit-playsinline', '');
                                     videoElement.className = 'hero-image';
+                                    videoElement.onerror = function() { console.error('Video Error in Live Update:', this.error); };
+                                    
+                                    const sourceElement = document.createElement('source');
+                                    sourceElement.src = url;
+                                    sourceElement.type = 'video/mp4';
+                                    videoElement.appendChild(sourceElement);
+                                    
                                     heroContainer.appendChild(videoElement);
                                 } else {
                                     const imgElement = document.createElement('img');

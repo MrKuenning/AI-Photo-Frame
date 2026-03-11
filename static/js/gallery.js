@@ -419,7 +419,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // Create appropriate media element
         if (mediaType === 'video') {
             const videoElement = document.createElement('video');
-            videoElement.src = mediaUrl;
             videoElement.controls = true;
             videoElement.autoplay = true;
             videoElement.loop = true;
@@ -429,6 +428,13 @@ document.addEventListener('DOMContentLoaded', function () {
             videoElement.setAttribute('webkit-playsinline', '');
             videoElement.className = 'hero-image';
             videoElement.id = 'large-preview-image';
+            videoElement.onerror = function() { console.error('Video Error in Gallery Preview:', this.error); };
+            
+            const sourceElement = document.createElement('source');
+            sourceElement.src = mediaUrl;
+            sourceElement.type = 'video/mp4';
+            videoElement.appendChild(sourceElement);
+            
             previewImageContainer.appendChild(videoElement);
         } else {
             const imgElement = document.createElement('img');
@@ -568,7 +574,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // Create appropriate media element
         if (mediaType === 'video') {
             const videoElement = document.createElement('video');
-            videoElement.src = fullMediaUrl;
             videoElement.controls = true;
             videoElement.autoplay = true;
             videoElement.loop = true;
@@ -578,6 +583,13 @@ document.addEventListener('DOMContentLoaded', function () {
             videoElement.setAttribute('webkit-playsinline', '');
             videoElement.className = 'hero-image';
             videoElement.id = 'large-preview-image';
+            videoElement.onerror = function() { console.error('Video Error in Gallery Navigation:', this.error); };
+            
+            const sourceElement = document.createElement('source');
+            sourceElement.src = fullMediaUrl;
+            sourceElement.type = 'video/mp4';
+            videoElement.appendChild(sourceElement);
+            
             previewImageContainer.appendChild(videoElement);
         } else {
             const imgElement = document.createElement('img');

@@ -23,8 +23,9 @@
                         class="thumbnail-link" data-filename="{{ image.filename }}"
                         data-subfolder="{{ image.subfolder }}">
                         {% if image.media_type == 'video' %}
-                        <video src="{{ url_for('serve_image', filename=image.subfolder + '/' + image.filename) }}"
-                            preload="metadata" class="thumbnail" muted playsinline webkit-playsinline></video>
+                        <video preload="metadata" class="thumbnail" muted playsinline webkit-playsinline onerr="console.error('Video Error on Thumbnail:', this.error)">
+                            <source src="{{ url_for('serve_image', filename=image.subfolder + '/' + image.filename) }}" type="video/mp4">
+                        </video>
                         {% else %}
                         <img src="{{ url_for('serve_image', filename=image.subfolder + '/' + image.filename) }}"
                             alt="{{ image.filename }}" class="thumbnail">
@@ -54,8 +55,9 @@
         <div class="image-container hero-view load-metadata" data-filename="{{ latest_image.filename }}"
             data-subfolder="{{ latest_image.subfolder }}" data-media-type="{{ latest_image.media_type }}">
             {% if latest_image.media_type == 'video' %}
-            <video src="{{ url_for('serve_image', filename=latest_image.subfolder + '/' + latest_image.filename) }}"
-                controls class="hero-image" preload="metadata" autoplay loop playsinline webkit-playsinline></video>
+            <video controls class="hero-image" preload="metadata" autoplay loop playsinline webkit-playsinline onerr="console.error('Video Error on Main:', this.error)">
+                <source src="{{ url_for('serve_image', filename=latest_image.subfolder + '/' + latest_image.filename) }}" type="video/mp4">
+            </video>
             {% else %}
             <img src="{{ url_for('serve_image', filename=latest_image.subfolder + '/' + latest_image.filename) }}"
                 alt="Latest Image" class="hero-image">
@@ -144,7 +146,6 @@
                 if (mediaType === 'video') {
                     console.log('Creating video element...');
                     const videoElement = document.createElement('video');
-                    videoElement.src = url;
                     videoElement.controls = true;
                     videoElement.autoplay = true;
                     videoElement.loop = true;
@@ -152,6 +153,13 @@
                     videoElement.setAttribute('playsinline', '');
                     videoElement.setAttribute('webkit-playsinline', '');
                     videoElement.className = 'hero-image';
+                    videoElement.onerror = function() { console.error('Video Error on Dynamic Main:', this.error); };
+                    
+                    const sourceElement = document.createElement('source');
+                    sourceElement.src = url;
+                    sourceElement.type = 'video/mp4'; // fallback hint
+                    videoElement.appendChild(sourceElement);
+                    
                     heroContainer.appendChild(videoElement);
                     console.log('Video element created and added to DOM');
                 } else {

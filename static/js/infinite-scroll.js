@@ -209,10 +209,15 @@ document.addEventListener('DOMContentLoaded', function () {
             let mediaElement;
             if (image.media_type === 'video') {
                 mediaElement = document.createElement('video');
-                mediaElement.src = `/image/${image.subfolder}/${image.filename}`;
                 mediaElement.className = 'thumbnail';
                 mediaElement.preload = 'metadata';
                 mediaElement.muted = true;
+                mediaElement.onerror = function() { console.error('Video Error in Infinite Scroll:', this.error); };
+                
+                const sourceElement = document.createElement('source');
+                sourceElement.src = `/image/${image.subfolder}/${image.filename}`;
+                sourceElement.type = 'video/mp4';
+                mediaElement.appendChild(sourceElement);
             } else {
                 mediaElement = document.createElement('img');
                 mediaElement.src = `/image/${image.subfolder}/${image.filename}`;
@@ -234,7 +239,9 @@ document.addEventListener('DOMContentLoaded', function () {
             // Add click event
             imageContainer.addEventListener('click', function (e) {
                 // Get the media URL and type
-                const fullMediaUrl = mediaElement.src;
+                const fullMediaUrl = mediaElement.tagName === 'VIDEO' ? 
+                                       (mediaElement.querySelector('source') ? mediaElement.querySelector('source').src : mediaElement.src) 
+                                       : mediaElement.src;
                 const mediaType = image.media_type || 'image';
 
                 // Show the preview panel with this media
