@@ -13,12 +13,14 @@ window.authState = {
     canFlag: true,
     canArchive: true,
     canToggleContentScan: true,
+    canToggleMetadataExtraction: true,
     canToggleContentLock: true,
     canToggleHideArchive: true,
     canToggleSafemode: true,
     canMarkSafe: true,
     canAccessSettings: false,
     contentScanUnlocked: false,
+    metadataExtractionUnlocked: false,
     contentLockUnlocked: false,
     hideArchiveUnlocked: false,
     safemodeUnlocked: false,
@@ -48,10 +50,12 @@ async function checkAuthStatus() {
             canMarkSafe: data.can_mark_safe,
             canAccessSettings: data.can_access_settings,
             canToggleContentScan: data.can_toggle_content_scan,
+            canToggleMetadataExtraction: data.can_toggle_metadata_extraction,
             canToggleContentLock: data.can_toggle_content_lock,
             canToggleHideArchive: data.can_toggle_hide_archive,
             canToggleSafemode: data.can_toggle_safemode,
             contentScanUnlocked: data.content_scan_unlocked,
+            metadataExtractionUnlocked: data.metadata_extraction_unlocked,
             contentLockUnlocked: data.content_lock_unlocked,
             hideArchiveUnlocked: data.hide_archive_unlocked,
             safemodeUnlocked: data.safemode_unlocked,
@@ -559,6 +563,76 @@ async function handleContentScanUnlock(event) {
 window.showContentScanUnlockModal = showContentScanUnlockModal;
 window.hideContentScanUnlockModal = hideContentScanUnlockModal;
 window.handleContentScanUnlock = handleContentScanUnlock;
+
+// Metadata Extraction unlock modal handlers
+function showMetadataExtractionUnlockModal() {
+    const modal = document.getElementById('metadata-extraction-unlock-modal');
+    if (modal) {
+        modal.classList.add('show');
+        modal.style.display = 'block';
+        document.body.classList.add('modal-open');
+        const input = modal.querySelector('#metadata-extraction-passphrase');
+        if (input) setTimeout(() => input.focus(), 100);
+    }
+}
+
+function hideMetadataExtractionUnlockModal() {
+    const modal = document.getElementById('metadata-extraction-unlock-modal');
+    if (modal) {
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+        document.body.classList.remove('modal-open');
+    }
+}
+
+async function handleMetadataExtractionUnlock(event) {
+    if (event) event.preventDefault();
+    const passphraseInput = document.getElementById('metadata-extraction-passphrase');
+    const errorDiv = document.getElementById('metadata-extraction-unlock-error');
+    const passphrase = passphraseInput ? passphraseInput.value : '';
+
+    try {
+        const response = await fetch('/unlock_metadata_extraction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ passphrase })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            hideMetadataExtractionUnlockModal();
+            window.authState.metadataExtractionUnlocked = true;
+            window.authState.canToggleMetadataExtraction = true;
+            if (passphraseInput) passphraseInput.value = '';
+            if (errorDiv) errorDiv.style.display = 'none';
+            // Toggle metadata extraction
+            const toggle = document.getElementById('metadata-extraction-toggle');
+            if (toggle) {
+                toggle.checked = !toggle.checked;
+                toggle.dispatchEvent(new Event('change'));
+            }
+        } else {
+            if (errorDiv) {
+                errorDiv.textContent = data.error || 'Invalid passphrase';
+                errorDiv.style.display = 'block';
+            }
+            if (passphraseInput) {
+                passphraseInput.value = '';
+                passphraseInput.focus();
+            }
+        }
+    } catch (error) {
+        console.error('Metadata extraction unlock error:', error);
+        if (errorDiv) {
+            errorDiv.textContent = 'Connection error. Please try again.';
+            errorDiv.style.display = 'block';
+        }
+    }
+}
+
+window.showMetadataExtractionUnlockModal = showMetadataExtractionUnlockModal;
+window.hideMetadataExtractionUnlockModal = hideMetadataExtractionUnlockModal;
+window.handleMetadataExtractionUnlock = handleMetadataExtractionUnlock;
 
 // Archive View unlock modal handlers
 function showHideArchiveUnlockModal() {

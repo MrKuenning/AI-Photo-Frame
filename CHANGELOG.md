@@ -4,6 +4,42 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-03-09]
+### Added
+- **Configurable Server Port**<br>
+  Configurable server port in `config.ini` and settings UI. Added the ability to configure the web server's listening port through the Global Settings menu in the UI. This allows users to host the application on a custom port without modifying the source code.
+- **Metadata Extraction Toggle**<br>
+  Added a new toggle for Metadata Extraction that behaves like the existing Content Scan toggle. Easily disable metadata parsing (LoRAs, Prompts) for a significant performance boost on folders where it is unneeded. Includes matching permission configurations and an override passphrase in the Global Settings menu.
+- Improved media auto-update performance using fast-track discovery.
+
+### Changed
+- **Config Lifecycle**<br>
+  The `PORT` setting is now stored in `config.ini` and persists across sessions. Changes to the port in the UI are saved immediately but require a full server restart to take effect.
+
+## [2026-03-05]
+### Added
+- **Metadata Support**: Enhanced LoRA extraction from prompts and JSON metadata (WanGP, ComfyUI).
+- **Search Enhancements**: Search functionality expanded to include model names and prompt text.
+
+## [2026-03-02]
+### Added
+- **Performance Boost**: New "Fast-Track" media discovery bypasses full disk scans for near-instant UI updates when new files are detected.
+- **WebSocket Events**: New `new_image` event for real-time background processing notifications.
+
+## [2026-02-25]
+### Added
+- **Authentication & Permissions**:
+    - Multi-level access control (Guest, User, Admin) for Delete, Flag, and Archive actions.
+    - Passphrase protection for settings and sensitive UI toggles.
+    - Toggle-specific permission levels and override passphrases.
+- **Archive System**: Automated archiving of main folder content to a structured `Archive` subfolder.
+- **Mark Safe**: New functionality to manually whitelist files as "Safe" to prevent repeated NSFW flagging.
+- **Content Lock**: Separate toggle to hide content-locked folders independently of Safe Mode.
+- **Improved Zoom & Pan**: Overhauled image viewing logic for smoother zooming and dragging on both PC and mobile.
+- **Custom Video Controls**: Enhanced video player with better progress tracking and mobile responsiveness.
+
+---
+
 ## [2026-02-11]
 
 ### Added

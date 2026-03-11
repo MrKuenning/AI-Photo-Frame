@@ -28,6 +28,7 @@
     <!-- DISABLED: causes page freeze <script src="{{ url_for('static', filename='js/display_mode_toggle.js') }}"></script> -->
     <script src="{{ url_for('static', filename='js/media_filter.js') }}"></script>
     <script src="{{ url_for('static', filename='js/thumbnail_slider.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/metadata_extraction.js') }}"></script>
     <script src="{{ url_for('static', filename='js/content_scan.js') }}"></script>
     <script src="{{ url_for('static', filename='js/content_lock.js') }}"></script>
     <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -119,6 +120,40 @@
                         <div class="d-flex gap-2">
                             <button type="button" class="btn btn-secondary flex-grow-1"
                                 onclick="hideContentScanUnlockModal()">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn btn-warning flex-grow-1">
+                                <i class="bi bi-unlock-fill me-2"></i>Unlock
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metadata Extraction Unlock Modal -->
+    <div id="metadata-extraction-unlock-modal" class="modal" tabindex="-1" style="display: none;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content"
+                style="background: var(--color-bg-tertiary); border: 1px solid var(--color-border);">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title"><i class="bi bi-file-earmark-code me-2"></i>Unlock Metadata Extraction</h5>
+                    <button type="button" class="btn-close btn-close-white"
+                        onclick="hideMetadataExtractionUnlockModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Enter the passphrase to toggle Metadata Extraction.</p>
+                    <form onsubmit="handleMetadataExtractionUnlock(event); return false;">
+                        <div class="mb-3">
+                            <input type="password" class="form-control" id="metadata-extraction-passphrase"
+                                placeholder="Metadata Extraction passphrase" autocomplete="off" required>
+                        </div>
+                        <div id="metadata-extraction-unlock-error" class="alert alert-danger" style="display: none;">
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-secondary flex-grow-1"
+                                onclick="hideMetadataExtractionUnlockModal()">
                                 Cancel
                             </button>
                             <button type="submit" class="btn btn-warning flex-grow-1">
@@ -255,6 +290,15 @@
                                 </label>
                                 <small class="text-muted d-block ms-4">Scans new images using AI nudity detection and
                                     keyword matching</small>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox"
+                                    id="setting-METADATA_EXTRACTION_DEFAULT">
+                                <label class="form-check-label" for="setting-METADATA_EXTRACTION_DEFAULT">
+                                    Metadata Extraction <small class="text-muted">- Load advanced metadata</small>
+                                </label>
+                                <small class="text-muted d-block ms-4">Extracts LoRAs and full prompts from image files.
+                                    Disable for huge performance boost</small>
                             </div>
                             <div class="form-check form-switch mb-3">
                                 <input class="form-check-input" type="checkbox" id="setting-CONTENT_LOCK_DEFAULT">
@@ -426,6 +470,30 @@
                                         <div class="col-md-4">
                                             <input type="password" class="form-control form-control-sm"
                                                 id="setting-TOGGLE_CONTENT_SCAN_PASSPHRASE"
+                                                placeholder="Override passphrase">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Metadata Extraction Toggle -->
+                            <div class="card bg-dark mb-3">
+                                <div class="card-body py-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <label class="form-label mb-0">Metadata Extraction Toggle</label>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select form-select-sm"
+                                                id="setting-TOGGLE_METADATA_EXTRACTION_LEVEL">
+                                                <option value="guest">Guest (Anyone)</option>
+                                                <option value="user">User (Logged in)</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="password" class="form-control form-control-sm"
+                                                id="setting-TOGGLE_METADATA_EXTRACTION_PASSPHRASE"
                                                 placeholder="Override passphrase">
                                         </div>
                                     </div>
@@ -831,6 +899,13 @@
                             </div>
                         </div>
 
+                        <!-- Metadata Extraction Toggle -->
+                        <div class="toggle-stack">
+                            <label class="toggle-label" for="metadata-extraction-toggle">Metadata Extrac.</label>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="metadata-extraction-toggle">
+                            </div>
+                        </div>
 
                         <!-- Hide Archive Toggle -->
                         <div class="toggle-stack">

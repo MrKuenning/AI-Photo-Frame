@@ -10,8 +10,8 @@ from flask_socketio import SocketIO
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from metadata_extractor import extract_embedded_metadata
-import content_scanner
+from utils.metadata_extractor import extract_embedded_metadata
+import utils.content_scanner as content_scanner
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", ping_timeout=60, ping_interval=25)
@@ -48,6 +48,7 @@ def load_config():
         'NSFW_LABELS': ['FEMALE_BREAST_EXPOSED', 'FEMALE_GENITALIA_EXPOSED', 'MALE_GENITALIA_EXPOSED', 'BUTTOCKS_EXPOSED', 'ANUS_EXPOSED'],
         'SAFE_MODE_DEFAULT': False,
         'CONTENT_SCAN_DEFAULT': False,
+        'METADATA_EXTRACTION_DEFAULT': True,
         'CONTENT_LOCK_DEFAULT': False,
         'HIDE_ARCHIVE_DEFAULT': False,
         'AUTH_ENABLED': False,
@@ -66,17 +67,21 @@ def load_config():
         'SETTINGS_PASSPHRASE': '',
         # Toggle permission levels
         'TOGGLE_CONTENT_SCAN_LEVEL': 'guest',
+        'TOGGLE_METADATA_EXTRACTION_LEVEL': 'guest',
         'TOGGLE_CONTENT_LOCK_LEVEL': 'guest',
         'TOGGLE_HIDE_ARCHIVE_LEVEL': 'guest',
         'TOGGLE_SAFEMODE_VIEW_LEVEL': 'guest',
         # Toggle passphrase overrides
         'TOGGLE_CONTENT_SCAN_PASSPHRASE': '',
+        'TOGGLE_METADATA_EXTRACTION_PASSPHRASE': '',
         'TOGGLE_CONTENT_LOCK_PASSPHRASE': '',
         'TOGGLE_ARCHIVE_PASSPHRASE': '',
         'TOGGLE_SAFEMODE_PASSPHRASE': '',
         # Content scan settings
         'CONTENT_SCAN_OFFSET': 0
     }
+    
+    config_needs_saving = False
     
     # Try to read config file
     if os.path.exists(config_path):
@@ -118,6 +123,7 @@ def load_config():
             # Parse toggle defaults
             default_config['SAFE_MODE_DEFAULT'] = config.getboolean('App', 'SAFE_MODE_DEFAULT', fallback=False)
             default_config['CONTENT_SCAN_DEFAULT'] = config.getboolean('App', 'CONTENT_SCAN_DEFAULT', fallback=False)
+            default_config['METADATA_EXTRACTION_DEFAULT'] = config.getboolean('App', 'METADATA_EXTRACTION_DEFAULT', fallback=True)
             default_config['CONTENT_LOCK_DEFAULT'] = config.getboolean('App', 'CONTENT_LOCK_DEFAULT', fallback=False)
             default_config['HIDE_ARCHIVE_DEFAULT'] = config.getboolean('App', 'HIDE_ARCHIVE_DEFAULT', fallback=False)
             
@@ -142,12 +148,14 @@ def load_config():
             
             # Parse toggle permission levels
             default_config['TOGGLE_CONTENT_SCAN_LEVEL'] = config.get('App', 'TOGGLE_CONTENT_SCAN_LEVEL', fallback='guest').strip().lower()
+            default_config['TOGGLE_METADATA_EXTRACTION_LEVEL'] = config.get('App', 'TOGGLE_METADATA_EXTRACTION_LEVEL', fallback='guest').strip().lower()
             default_config['TOGGLE_CONTENT_LOCK_LEVEL'] = config.get('App', 'TOGGLE_CONTENT_LOCK_LEVEL', fallback='guest').strip().lower()
             default_config['TOGGLE_HIDE_ARCHIVE_LEVEL'] = config.get('App', 'TOGGLE_HIDE_ARCHIVE_LEVEL', fallback='guest').strip().lower()
             default_config['TOGGLE_SAFEMODE_VIEW_LEVEL'] = config.get('App', 'TOGGLE_SAFEMODE_VIEW_LEVEL', fallback='guest').strip().lower()
             
             # Parse toggle passphrase overrides
             default_config['TOGGLE_CONTENT_SCAN_PASSPHRASE'] = config.get('App', 'TOGGLE_CONTENT_SCAN_PASSPHRASE', fallback='').strip()
+            default_config['TOGGLE_METADATA_EXTRACTION_PASSPHRASE'] = config.get('App', 'TOGGLE_METADATA_EXTRACTION_PASSPHRASE', fallback='').strip()
             default_config['TOGGLE_CONTENT_LOCK_PASSPHRASE'] = config.get('App', 'TOGGLE_CONTENT_LOCK_PASSPHRASE', fallback='').strip()
             default_config['TOGGLE_ARCHIVE_PASSPHRASE'] = config.get('App', 'TOGGLE_ARCHIVE_PASSPHRASE', fallback='').strip()
             default_config['TOGGLE_SAFEMODE_PASSPHRASE'] = config.get('App', 'TOGGLE_SAFEMODE_PASSPHRASE', fallback='').strip()
@@ -157,7 +165,43 @@ def load_config():
         
         print(f"[OK] Loaded configuration from {config_path}")
     else:
-        print(f"[WARN] Config file not found at {config_path}, using defaults")
+        print(f"[WARN] Config file not found at {config_path}")
+        config_needs_saving = True
+        
+    # Check if image folder exists
+    while not default_config['IMAGE_FOLDER'] or not os.path.isdir(default_config['IMAGE_FOLDER']):
+        print(f"\n[SETUP] Monitor folder '{default_config['IMAGE_FOLDER']}' not found or invalid.")
+        print("[SETUP] Please enter the full path to the root directory you want to monitor for images: Example E:\\AI\\Output")
+        try:
+            new_path = input("> ").strip().strip('"').strip("'")
+            if new_path and os.path.isdir(new_path):
+                default_config['IMAGE_FOLDER'] = new_path
+                config_needs_saving = True
+                break
+            else:
+                print("[SETUP] Error: That folder does not exist. Please enter a valid directory.")
+        except EOFError:
+            print("\n[SETUP] Input cancelled. Cannot start without a valid monitor folder.")
+            exit(1)
+            
+    # Save default config if file was missing or folder updated
+    if config_needs_saving:
+        try:
+            if 'App' not in config:
+                config['App'] = {}
+            for key, value in default_config.items():
+                if isinstance(value, list):
+                    config['App'][key] = ', '.join(value)
+                elif isinstance(value, bool):
+                    config['App'][key] = 'true' if value else 'false'
+                else:
+                    config['App'][key] = str(value)
+            
+            with open(config_path, 'w') as f:
+                config.write(f)
+            print(f"[SETUP] Saved initial configuration to {config_path}")
+        except Exception as e:
+            print(f"[SETUP] Error saving config: {e}")
     
     return default_config
 
@@ -182,6 +226,7 @@ latest_image_timestamp = 0  # Track the timestamp of the latest image
 scan_in_progress = False  # Flag to prevent concurrent scans
 last_scan_time = 0  # Track last scan time for debouncing
 content_scan_enabled = CONFIG.get('CONTENT_SCAN_DEFAULT', False)  # Content Scan toggle state
+metadata_extraction_enabled = CONFIG.get('METADATA_EXTRACTION_DEFAULT', True)  # Metadata Extraction toggle state
 content_scan_progress = None  # Current scan progress for gallery scan
 
 # Lock for thread safety
@@ -321,6 +366,17 @@ def can_toggle_content_scan() -> bool:
     # Check permission level (no is_admin shortcut — respects toggle level even when auth disabled)
     if has_permission(CONFIG.get('TOGGLE_CONTENT_SCAN_LEVEL', 'guest')):
         return True
+    # Check if user has unlocked this action via passphrase
+    session = get_session()
+    return session.get('content_scan_unlocked', False)
+
+
+def can_toggle_metadata_extraction() -> bool:
+    """Check if user can toggle metadata extraction based on TOGGLE_METADATA_EXTRACTION_LEVEL config"""
+    if has_permission(CONFIG.get('TOGGLE_METADATA_EXTRACTION_LEVEL', 'guest')):
+        return True
+    session = get_session()
+    return session.get('metadata_extraction_unlocked', False)
     # Check if user has unlocked this toggle via passphrase
     session = get_session()
     return session.get('content_scan_unlocked', False)
@@ -488,21 +544,21 @@ def scan_images():
     
     # Prevent concurrent scans
     if scan_in_progress:
-        print("[SCAN] Scan already in progress, skipping...")
+        print("[FILE-INDEX] Directory sync already in progress, skipping...")
         return
     
     # Debounce: Don't scan more than once per second
     import time
     current_time = time.time()
     if current_time - last_scan_time < 1.0:
-        print("[SCAN] Scan requested too soon, debouncing...")
+        print("[FILE-INDEX] Directory sync requested too soon, debouncing...")
         return
     
     scan_in_progress = True
     last_scan_time = current_time
     
     try:
-        print(f"[SCAN] Starting scan of {CONFIG['IMAGE_FOLDER']}...")
+        print(f"[FILE-INDEX] Starting directory sync of {CONFIG['IMAGE_FOLDER']}...")
         
         # Supported file extensions
         IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
@@ -519,7 +575,7 @@ def scan_images():
                 if os.path.isdir(item_path):
                     temp_subfolders.append(item)
         except Exception as e:
-            print(f"[SCAN] Error listing top folders: {e}")
+            print(f"[FILE-INDEX] Error listing top folders: {e}")
         
         # Recursive function to scan all media files in all subfolder levels
         def scan_folder(folder_path, top_folder):
@@ -577,7 +633,7 @@ def scan_images():
                         
                         temp_image_list.append(media_info)
             except Exception as e:
-                print(f"[SCAN] Error scanning folder {folder_path}: {e}")
+                print(f"[FILE-INDEX] Error syncing folder {folder_path}: {e}")
         
         # Scan all top-level subfolders recursively
         for subfolder in temp_subfolders:
@@ -597,14 +653,14 @@ def scan_images():
                 latest_image = image_list[0]
                 latest_image_timestamp = latest_image['mod_time']
                 
-            print(f"[SCAN] Complete! Found {len(image_list)} media files")
+            print(f"[FILE-INDEX] Complete! Found {len(image_list)} media files")
             
             # Start background enrichment to get detailed metadata (prompt, seed, model, loras)
             # This does NOT perform any keyword filtering/tagging, just data gathering for display.
             threading.Thread(target=_enrich_metadata_background_task, daemon=True).start()
     
     except Exception as e:
-        print(f"[SCAN] Fatal error during scan: {e}")
+        print(f"[FILE-INDEX] Fatal error during sync: {e}")
     
     # Always reset the flag when done (even if there's an exception)
     finally:
@@ -620,6 +676,9 @@ def _enrich_metadata_background_task():
     does NOT use this data for NSFW filtering/flagging.
     """
     updated = 0
+    if not metadata_extraction_enabled:
+        return
+        
     with cache_lock:
         # Check all images that haven't been enriched yet
         # We can check if 'embedded_loaded' flag is missing
@@ -1570,24 +1629,25 @@ def image_info(filename):
             
             # Try to extract embedded metadata from the file
             try:
-                embedded = extract_embedded_metadata(img['path'])
-                if embedded:
-                    print(f"[DEBUG] Embedded metadata found for {filename}: {embedded.keys()}")
-                
-                # Merge embedded logic into existing metadata
-                # We prioritize embedded data over filename-parsed data if available
-                if embedded.get('prompt'):
-                    result['prompt'] = embedded['prompt']
-                if embedded.get('negative_prompt'):
-                    result['negative_prompt'] = embedded['negative_prompt']
-                if embedded.get('seed'):
-                    result['seed'] = embedded['seed']
-                if embedded.get('model'):
-                    result['model'] = embedded['model']
-                if embedded.get('dimensions'):
-                    result['dimensions'] = embedded['dimensions']
-                if embedded.get('loras'):
-                    result['loras'] = embedded['loras']
+                if metadata_extraction_enabled:
+                    embedded = extract_embedded_metadata(img['path'])
+                    if embedded:
+                        print(f"[DEBUG] Embedded metadata found for {filename}: {embedded.keys()}")
+                    
+                    # Merge embedded logic into existing metadata
+                    # We prioritize embedded data over filename-parsed data if available
+                    if embedded.get('prompt'):
+                        result['prompt'] = embedded['prompt']
+                    if embedded.get('negative_prompt'):
+                        result['negative_prompt'] = embedded['negative_prompt']
+                    if embedded.get('seed'):
+                        result['seed'] = embedded['seed']
+                    if embedded.get('model'):
+                        result['model'] = embedded['model']
+                    if embedded.get('dimensions'):
+                        result['dimensions'] = embedded['dimensions']
+                    if embedded.get('loras'):
+                        result['loras'] = embedded['loras']
             except Exception as e:
                 print(f"[METADATA] Error extracting embedded metadata: {e}")
             
@@ -1771,11 +1831,13 @@ def auth_status():
         'settings_passphrase_required': bool(CONFIG.get('SETTINGS_PASSPHRASE')) and not can_access_settings(),
         # Toggle permissions
         'can_toggle_content_scan': can_toggle_content_scan(),
+        'can_toggle_metadata_extraction': can_toggle_metadata_extraction(),
         'can_toggle_content_lock': can_toggle_content_lock(),
         'can_toggle_hide_archive': can_toggle_hide_archive(),
         'can_toggle_safemode': can_toggle_safemode(),
         # Unlock states
         'content_scan_unlocked': session.get('content_scan_unlocked', False),
+        'metadata_extraction_unlocked': session.get('metadata_extraction_unlocked', False),
         'content_lock_unlocked': session.get('content_lock_unlocked', False),
         'hide_archive_unlocked': session.get('hide_archive_unlocked', False),
         'safemode_unlocked': session.get('safemode_unlocked', False),
@@ -1787,6 +1849,7 @@ def auth_status():
         'safe_mode_default': CONFIG.get('SAFE_MODE_DEFAULT', False),
         'HIDE_ARCHIVE_DEFAULT': CONFIG.get('HIDE_ARCHIVE_DEFAULT', False),
         'content_scan_default': CONFIG.get('CONTENT_SCAN_DEFAULT', False),
+        'metadata_extraction_default': CONFIG.get('METADATA_EXTRACTION_DEFAULT', True),
         'content_lock_default': CONFIG.get('CONTENT_LOCK_DEFAULT', False)
     })
 
@@ -1811,6 +1874,29 @@ def unlock_content_scan():
         response.set_cookie('auth_session', session_token, httponly=True, samesite='Lax')
         return response
     else:
+        return jsonify({'success': False, 'error': 'Invalid passphrase'})
+
+@app.route('/unlock_metadata_extraction', methods=['POST'])
+def unlock_metadata_extraction():
+    """Unlock metadata extraction toggle for this session"""
+    data = request.get_json() or {}
+    passphrase = data.get('passphrase', '').strip()
+    
+    config_pass = CONFIG.get('TOGGLE_METADATA_EXTRACTION_PASSPHRASE', '')
+    
+    if not config_pass:
+        return jsonify({'success': False, 'error': 'No metadata extraction passphrase configured'})
+    
+    if passphrase == config_pass:
+        session = get_session()
+        session['metadata_extraction_unlocked'] = True
+        session_token = session_serializer.dumps(session)
+        
+        response = make_response(jsonify({'success': True}))
+        response.set_cookie('auth_session', session_token, httponly=True, samesite='Lax')
+        return response
+    else:
+        return jsonify({'success': False, 'error': 'Invalid passphrase'})
         return jsonify({'success': False, 'error': 'Invalid passphrase'})
 
 
@@ -1996,6 +2082,7 @@ def get_settings():
             # Startup Defaults
             'SAFE_MODE_DEFAULT': CONFIG.get('SAFE_MODE_DEFAULT', False),
             'CONTENT_SCAN_DEFAULT': CONFIG.get('CONTENT_SCAN_DEFAULT', False),
+            'METADATA_EXTRACTION_DEFAULT': CONFIG.get('METADATA_EXTRACTION_DEFAULT', True),
             'CONTENT_LOCK_DEFAULT': CONFIG.get('CONTENT_LOCK_DEFAULT', False),
             'HIDE_ARCHIVE_DEFAULT': CONFIG.get('HIDE_ARCHIVE_DEFAULT', False),
             # Authentication
@@ -2015,11 +2102,13 @@ def get_settings():
             'SETTINGS_PASSPHRASE': CONFIG.get('SETTINGS_PASSPHRASE', ''),
             # Toggle Permission Levels
             'TOGGLE_CONTENT_SCAN_LEVEL': CONFIG.get('TOGGLE_CONTENT_SCAN_LEVEL', 'guest'),
+            'TOGGLE_METADATA_EXTRACTION_LEVEL': CONFIG.get('TOGGLE_METADATA_EXTRACTION_LEVEL', 'guest'),
             'TOGGLE_CONTENT_LOCK_LEVEL': CONFIG.get('TOGGLE_CONTENT_LOCK_LEVEL', 'guest'),
             'TOGGLE_HIDE_ARCHIVE_LEVEL': CONFIG.get('TOGGLE_HIDE_ARCHIVE_LEVEL', 'guest'),
             'TOGGLE_SAFEMODE_VIEW_LEVEL': CONFIG.get('TOGGLE_SAFEMODE_VIEW_LEVEL', 'guest'),
             # Toggle Passphrases
             'TOGGLE_CONTENT_SCAN_PASSPHRASE': CONFIG.get('TOGGLE_CONTENT_SCAN_PASSPHRASE', ''),
+            'TOGGLE_METADATA_EXTRACTION_PASSPHRASE': CONFIG.get('TOGGLE_METADATA_EXTRACTION_PASSPHRASE', ''),
             'TOGGLE_CONTENT_LOCK_PASSPHRASE': CONFIG.get('TOGGLE_CONTENT_LOCK_PASSPHRASE', ''),
             'TOGGLE_ARCHIVE_PASSPHRASE': CONFIG.get('TOGGLE_ARCHIVE_PASSPHRASE', ''),
             'TOGGLE_SAFEMODE_PASSPHRASE': CONFIG.get('TOGGLE_SAFEMODE_PASSPHRASE', ''),
@@ -2107,6 +2196,24 @@ def toggle_content_scan():
     })
 
 
+@app.route('/toggle_metadata_extraction', methods=['POST'])
+def toggle_metadata_extraction():
+    """Toggle metadata extraction on/off"""
+    global metadata_extraction_enabled
+    
+    data = request.get_json() or {}
+    enabled = data.get('enabled', not metadata_extraction_enabled)
+    metadata_extraction_enabled = enabled
+    
+    status = "enabled" if enabled else "disabled"
+    print(f"[MetadataExtraction] Metadata extraction {status}")
+    
+    return jsonify({
+        'success': True,
+        'enabled': metadata_extraction_enabled
+    })
+
+
 @app.route('/get_content_scan_status')
 def get_content_scan_status():
     """Get current content scan toggle state and default settings"""
@@ -2114,6 +2221,15 @@ def get_content_scan_status():
         'enabled': content_scan_enabled,
         'safe_mode_default': CONFIG.get('SAFE_MODE_DEFAULT', False),
         'content_scan_default': CONFIG.get('CONTENT_SCAN_DEFAULT', False)
+    })
+
+
+@app.route('/get_metadata_extraction_status')
+def get_metadata_extraction_status():
+    """Get current metadata extraction toggle state and default settings"""
+    return jsonify({
+        'enabled': metadata_extraction_enabled,
+        'metadata_extraction_default': CONFIG.get('METADATA_EXTRACTION_DEFAULT', True)
     })
 
 
