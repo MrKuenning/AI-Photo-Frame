@@ -4,6 +4,13 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-03-11]
+### Fixed
+- **Chrome Video Playback Compatibility**<br>
+  Resolved an issue where video streams would fail to render and play on specific hardware configurations or Chrome profiles by explicitly enforcing `<source>` tag generation and improving `X-Content-Type-Options: nosniff` and `Cache-Control` server headers.
+- **Global Video Diagnostics**<br>
+  Added global error listeners specifically for media tags to help isolate decoding failures and provide actionable troubleshooting information in the Developer Console.
+
 ## [2026-03-09]
 ### Added
 - **Configurable Server Port**<br>
