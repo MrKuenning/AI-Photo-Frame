@@ -4,6 +4,11 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-03-24]
+### Fixed
+- **Metadata Extraction Resiliency**<br>
+  Fixed an issue where Automatic1111/Forge EXIF metadata lacking newlines failed to parse. Corrected UTF-16 UserComment decoding for images without byte-order marks to prevent garbled text, and fixed Wan2GP JSON extraction failing when prepended with ASCII encoding markers.
+
 ## [2026-03-20]
 ### Added
 - **Metadata Copy-to-Clipboard**<br>

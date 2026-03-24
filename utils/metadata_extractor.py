@@ -147,16 +147,11 @@ def _decode_user_comment(data):
         return ""
     
     if isinstance(data, str):
-        return data
-    
-    # First, try decoding the whole thing as UTF-8 (most common case)
-    try:
-        decoded = data.decode('utf-8')
-        # Check if it looks like valid text (not garbage)
-        if decoded and not decoded.startswith(('\x00', '\ufeff')):
-            return decoded.rstrip('\x00')
-    except:
-        pass
+        if data.startswith('ASCII\x00\x00\x00'):
+            return data[8:].rstrip('\x00')
+        elif data.startswith('UNICODE\x00'):
+            return data[8:].replace('\x00', '').rstrip('\x00')
+        return data.rstrip('\x00')
     
     # Check if there's an encoding marker (first 8 bytes)
     if len(data) >= 8:
@@ -166,11 +161,19 @@ def _decode_user_comment(data):
         try:
             if encoding_marker == b'UNICODE\x00':
                 # UTF-16 encoding - try both endianness
-                try:
-                    return content.decode('utf-16-le').rstrip('\x00')
-                except:
+                # UTF-16 encoding - determine endianness
+                if content.startswith(b'\xff\xfe'):
+                    try: return content.decode('utf-16-le').rstrip('\x00')
+                    except: pass
+                elif content.startswith(b'\xfe\xff'):
+                    try: return content.decode('utf-16-be').rstrip('\x00')
+                    except: pass
+                else:
+                    if len(content) >= 2 and content[0] == 0:
+                        try: return content.decode('utf-16-be').rstrip('\x00')
+                        except: pass
                     try:
-                        return content.decode('utf-16-be').rstrip('\x00')
+                        return content.decode('utf-16-le').rstrip('\x00')
                     except:
                         pass
             elif encoding_marker.startswith(b'ASCII\x00\x00\x00'):
@@ -183,6 +186,14 @@ def _decode_user_comment(data):
                     pass
         except:
             pass
+            
+    # If no valid marker or decoding failed, try decoding the whole thing as UTF-8
+    try:
+        decoded = data.decode('utf-8')
+        if decoded and not decoded.startswith(('\x00', '\ufeff')):
+            return decoded.rstrip('\x00')
+    except:
+        pass
     
     # Last resort: try latin-1 which accepts any byte sequence
     try:
@@ -386,8 +397,8 @@ def _parse_a1111_metadata(text, result):
     if not text or not isinstance(text, str):
         return result
     
-    # Split by "Negative prompt:" to get prompt and rest
-    neg_split = re.split(r'\nNegative prompt:\s*', text, maxsplit=1)
+    # Split by "Negative prompt:" to get prompt and rest (allow missing newlines)
+    neg_split = re.split(r'(?i)\s*Negative prompt:\s*', text, maxsplit=1)
     
     if len(neg_split) >= 1:
         result['prompt'] = neg_split[0].strip()
@@ -396,8 +407,8 @@ def _parse_a1111_metadata(text, result):
         # Split by newline to separate negative prompt from parameters
         remaining = neg_split[1]
         
-        # Find where parameters start (look for common parameter names)
-        param_match = re.search(r'\n(?:Steps|Sampler|CFG|Seed|Size|Model):', remaining)
+        # Find where parameters start (look for common parameter names, relax newline req)
+        param_match = re.search(r'(?i)(?:\n|\.\s*|\s+)?(?:Steps|Sampler|CFG|Seed|Size|Model):', remaining)
         
         if param_match:
             result['negative_prompt'] = remaining[:param_match.start()].strip()
@@ -425,7 +436,7 @@ def _parse_a1111_metadata(text, result):
                 result['dimensions'] = size_match.group(1)
     else:
         # No negative prompt marker, check if there are parameters in a single line
-        param_match = re.search(r'(?:Steps|Sampler|CFG|Seed|Size|Model):', text)
+        param_match = re.search(r'(?i)(?:\n|\.\s*|\s+)?(?:Steps|Sampler|CFG|Seed|Size|Model):', text)
         if param_match:
             result['prompt'] = text[:param_match.start()].strip()
             params_text = text[param_match.start():]
