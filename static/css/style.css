@@ -680,9 +680,7 @@ video.hero-image::-webkit-media-controls-start-playback-button {
     opacity: 0 !important;
 }
 
-video::-webkit-media-controls-panel {
-    /* Keep the control bar but style it to be less obtrusive */
-}
+
 
 /* ==========================================
    Custom Video Controls
@@ -935,6 +933,63 @@ video::-webkit-media-controls-panel {
 .metadata strong {
     color: var(--color-accent-primary);
     font-weight: 600;
+}
+
+.metadata-line {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    padding: 2px 0;
+    transition: background var(--transition-fast);
+    border-radius: var(--radius-sm);
+}
+
+.metadata-line:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.metadata-content {
+    flex: 1;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.copy-metadata-btn {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    opacity: 0.6;
+    margin-top: 2px;
+}
+
+.copy-metadata-btn:hover {
+    color: var(--color-accent-primary);
+    background: var(--color-surface-hover);
+    border-color: var(--color-accent-primary);
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+.copy-metadata-btn:active {
+    transform: scale(0.95);
+}
+
+.copy-metadata-btn.copied {
+    color: #28a745 !important;
+    border-color: #28a745 !important;
+    background: rgba(40, 167, 69, 0.1) !important;
+    opacity: 1;
 }
 
 /* ==========================================

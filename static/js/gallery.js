@@ -379,7 +379,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!mediaElement) return;
 
-            const fullMediaUrl = mediaElement.src;
+            // Get the media URL safely (handle <video> with <source> tags)
+            const fullMediaUrl = video ? (video.currentSrc || video.querySelector('source')?.src) : img.src;
             const mediaType = video ? 'video' : 'image';
 
             // Get the filename and metadata
@@ -559,7 +560,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!mediaElement) return;
 
-        const fullMediaUrl = mediaElement.src;
+        // Get the media URL safely (handle <video> with <source> tags)
+        const fullMediaUrl = video ? (video.currentSrc || video.querySelector('source')?.src) : img.src;
         const filename = container.dataset.filename;
         const subfolder = container.dataset.subfolder;
         const mediaType = video ? 'video' : 'image';

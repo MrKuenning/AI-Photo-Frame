@@ -140,7 +140,7 @@
                 data-subfolder="{{ image.subfolder }}" data-index="{{ loop.index0 }}"
                 data-media-type="{{ image.media_type }}">
                 {% if image.media_type == 'video' %}
-                <video preload="metadata" class="thumbnail" muted playsinline webkit-playsinline onerr="console.error('Video Error on Gallery Grid:', this.error)">
+                <video preload="metadata" class="thumbnail" muted playsinline webkit-playsinline onerror="console.error('Video Error on Gallery Grid:', this.error)">
                     <source src="{{ url_for('serve_image', filename=image.subfolder + '/' + image.filename) }}" type="video/mp4">
                 </video>
                 {% else %}

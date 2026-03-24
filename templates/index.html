@@ -23,7 +23,7 @@
                         class="thumbnail-link" data-filename="{{ image.filename }}"
                         data-subfolder="{{ image.subfolder }}">
                         {% if image.media_type == 'video' %}
-                        <video preload="metadata" class="thumbnail" muted playsinline webkit-playsinline onerr="console.error('Video Error on Thumbnail:', this.error)">
+                        <video preload="metadata" class="thumbnail" muted playsinline webkit-playsinline onerror="console.error('Video Error on Thumbnail:', this.error)">
                             <source src="{{ url_for('serve_image', filename=image.subfolder + '/' + image.filename) }}" type="video/mp4">
                         </video>
                         {% else %}
@@ -55,7 +55,7 @@
         <div class="image-container hero-view load-metadata" data-filename="{{ latest_image.filename }}"
             data-subfolder="{{ latest_image.subfolder }}" data-media-type="{{ latest_image.media_type }}">
             {% if latest_image.media_type == 'video' %}
-            <video controls class="hero-image" preload="metadata" autoplay loop playsinline webkit-playsinline onerr="console.error('Video Error on Main:', this.error)">
+            <video controls class="hero-image" preload="metadata" autoplay loop playsinline webkit-playsinline onerror="console.error('Video Error on Main:', this.error)">
                 <source src="{{ url_for('serve_image', filename=latest_image.subfolder + '/' + latest_image.filename) }}" type="video/mp4">
             </video>
             {% else %}

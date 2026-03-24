@@ -1,4 +1,5 @@
 import os
+import mimetypes
 import sys
 import shutil
 import threading
@@ -12,7 +13,7 @@ if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8')
 
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, send_from_directory, make_response, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_from_directory, make_response, Response, redirect, url_for
 from flask_paginate import Pagination, get_page_parameter
 from flask_socketio import SocketIO
 from watchdog.observers import Observer
@@ -1395,8 +1396,6 @@ def load_more_images():
 @app.route('/image/<path:filename>')
 def serve_image(filename):
     """Serve original images and videos from any subfolder depth with range request support for iOS"""
-    import mimetypes
-    from flask import Response
     
     # Split the path to handle nested subfolders
     path_parts = filename.split('/')
@@ -1446,25 +1445,39 @@ def serve_image(filename):
             end = int(byte_range[1]) if len(byte_range) > 1 and byte_range[1] else file_size - 1
             length = end - start + 1
             
-            # Read the requested range
-            with open(full_file_path, 'rb') as f:
-                f.seek(start)
-                data = f.read(length)
+            # Stream the requested range to handle disconnections gracefully and save memory
+            def generate_range(path, start_pos, total_length):
+                with open(path, 'rb') as f_stream:
+                    f_stream.seek(start_pos)
+                    bytes_sent = 0
+                    while bytes_sent < total_length:
+                        # Use 128KB chunks for a good balance between overhead and responsiveness
+                        chunk_size = min(total_length - bytes_sent, 128 * 1024)
+                        chunk = f_stream.read(chunk_size)
+                        if not chunk:
+                            break
+                        yield chunk
+                        bytes_sent += len(chunk)
             
-            # Return 206 Partial Content response
-            response = Response(data, 206, mimetype=mimetype, direct_passthrough=True)
-            response.headers.add('Content-Range', f'bytes {start}-{end}/{file_size}')
-            response.headers.add('Accept-Ranges', 'bytes')
-            response.headers.add('Content-Length', str(length))
-            response.headers.add('X-Content-Type-Options', 'nosniff')
-            response.headers.add('Cache-Control', 'no-cache, must-revalidate')
+            # Return 206 Partial Content response using a generator
+            # direct_passthrough=True allows Eventlet/WSGI to handle the stream efficiently
+            response = Response(generate_range(full_file_path, start, length), 206, mimetype=mimetype, direct_passthrough=True)
+            response.headers['Content-Range'] = f'bytes {start}-{end}/{file_size}'
+            response.headers['Accept-Ranges'] = 'bytes'
+            response.headers['Content-Length'] = str(length)
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+            response.headers['Cache-Control'] = 'no-cache, must-revalidate'
+            
+            if CONFIG.get('LOGGING_LEVEL') == 'debug':
+                print(f"[MEDIA] Streaming range {start}-{end}/{file_size} for {actual_filename}")
+                
             return response
         else:
-            # No range request, send full file with range support headers
+            # No range request, send full file
+            # send_from_directory handles most headers, but we'll ensure range support is explicitly signaled
             response = send_from_directory(full_dir_path, actual_filename, mimetype=mimetype)
-            response.headers.add('Accept-Ranges', 'bytes')
-            response.headers.add('Content-Length', str(file_size))
-            response.headers.add('X-Content-Type-Options', 'nosniff')
+            response.headers['Accept-Ranges'] = 'bytes'
+            response.headers['X-Content-Type-Options'] = 'nosniff'
             return response
     else:
         # For images, use standard serving

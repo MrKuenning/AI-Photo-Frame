@@ -4,6 +4,17 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-03-20]
+### Added
+- **Metadata Copy-to-Clipboard**<br>
+  Each metadata line in the Home and Gallery pages now features a subtle copy button. Clicking it instantly copies the specific value (Prompt, Seed, etc.) to the clipboard with visual confirmation via a checkmark icon.
+
+### Fixed
+- **Gallery Video Playback Resolution**<br>
+  Resolved an issue where videos in the gallery would fail to load their source URL correctly. Fixed a specific bug with `<source>` tag resolution and corrected a typo in the `onerror` event handler to ensure error diagnostics are properly logged.
+- **Media Streaming Stability Overhaul**<br>
+  Re-engineered the backend video serving to use a memory-efficient chunked generator for range requests. This replaces the old in-memory buffering, providing much smoother seeking on all devices and handling abrupt client-side disconnections (`WinError 10054`) gracefully without server congestion.
+
 ## [2026-03-11]
 ### Fixed
 - **Chrome Video Playback Compatibility**<br>
