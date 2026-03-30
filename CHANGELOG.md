@@ -4,6 +4,19 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-03-26]
+### Added
+- **Unified Media Viewer Standardization**<br>
+  Standardized the image and video viewing experience across all five hero views: Home (Normal/Expanded), Gallery (Normal/Expanded), and the Frame page. All views now share a common codebase for interactive media interaction.
+- **Shared Interactive Controls**<br>
+  Enabled the existing mouse-based zoom (scroll wheel) and panning (drag) system for images on the Frame page, and replaced native video controls with consistent custom player controls across the entire application.
+- **Universal Media Sizing**<br>
+  All hero views now consistently support both upscaling and downscaling ("expand or contract") media to fill the viewing area while strictly respecting the natural aspect ratio via `object-fit: contain`. Fixed a specific issue with small images failing to expand in the Gallery preview.
+
+### Changed
+- **Control Cleanup**<br>
+  Removed the legacy `image_size_toggle.js` (stretching toggle) as its functionality has been superseded by the superior shared zoom/pan module.
+
 ## [2026-03-24]
 ### Fixed
 - **Metadata Extraction Resiliency**<br>

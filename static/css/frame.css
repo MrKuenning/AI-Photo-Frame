@@ -84,3 +84,26 @@
 .picture-frame .image-container:hover .metadata {
     opacity: 1;
 }
+
+/* Zoom mode in picture frame */
+.picture-frame .image-container.zoom-active {
+    overflow: hidden !important;
+    cursor: grab;
+}
+
+.picture-frame .image-container.zoom-active:active {
+    cursor: grabbing;
+}
+
+/* Ensure hero-image cursor works in frame context */
+.picture-frame .hero-image {
+    cursor: zoom-in;
+}
+
+.picture-frame .hero-image.zoomed {
+    cursor: grab;
+}
+
+.picture-frame .hero-image.zoomed:active {
+    cursor: grabbing;
+}

@@ -1020,13 +1020,13 @@ video.hero-image::-webkit-media-controls-start-playback-button {
     animation: fadeIn var(--transition-base) ease-out;
 }
 
-/* Hero image in expanded mode */
+/* Hero image in expanded mode - expand AND shrink to fill */
 .hero-expanded .hero-image {
     max-width: 100vw !important;
     max-height: calc(100vh - 60px) !important;
     /* Account for footer */
-    width: auto !important;
-    height: auto !important;
+    width: 100% !important;
+    height: 100% !important;
     object-fit: contain !important;
     cursor: pointer !important;
 }
@@ -1558,6 +1558,23 @@ body.has-hero-expanded .card-footer {
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+/* Gallery preview container fills the card body */
+.large-preview-image-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+/* Gallery preview hero-image expands AND shrinks to fill */
+.large-preview-image-container .hero-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .preview-image {
@@ -2232,11 +2249,13 @@ video::-webkit-media-controls-timeline {
         justify-content: flex-start !important;
     }
 
-    /* Controls on same row as filter, pushed right */
+    /* Controls on same row as filter, pushed right, but allowed to wrap */
     .navbar .d-flex.align-items-center {
         order: 11;
         margin-top: var(--spacing-xs) !important;
         margin-left: auto !important;
+        flex-wrap: wrap;
+        justify-content: flex-end;
     }
 
     .media-filter-btn {
@@ -2309,8 +2328,11 @@ video::-webkit-media-controls-timeline {
 
     .navbar .d-flex.align-items-center {
         order: 11;
-        margin: var(--spacing-xs) 0 0 var(--spacing-md) !important;
-        gap: var(--spacing-sm) !important;
+        margin: var(--spacing-md) 0 var(--spacing-xs) 0 !important;
+        gap: var(--spacing-md) var(--spacing-sm) !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        width: 100% !important;
     }
 
     .media-filter-btn {

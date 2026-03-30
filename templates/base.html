@@ -44,7 +44,7 @@
     <script src="{{ url_for('static', filename='js/archive_filter.js') }}"></script>
     <script src="{{ url_for('static', filename='js/sidebar_toggle.js') }}"></script>
     {% if request.endpoint != 'index' %}
-    <script src="{{ url_for('static', filename='js/image_size_toggle.js') }}"></script>
+    <!-- REMOVED: image_size_toggle.js - superseded by actual_size_toggle.js zoom/pan module -->
     {% endif %}
     <!-- DISABLED: causes page freeze <script src="{{ url_for('static', filename='js/display_mode_toggle.js') }}"></script> -->
     <script src="{{ url_for('static', filename='js/media_filter.js') }}"></script>

@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function () {
         video.removeAttribute('controls');
 
         // Get or create the control wrapper
-        const container = video.closest('.hero-view') || video.closest('.image-container') || video.parentElement;
+        const container = video.closest('.hero-view') || video.closest('.picture-frame .image-container') || video.closest('.image-container') || video.parentElement;
 
         // Create controls overlay
         const controls = document.createElement('div');

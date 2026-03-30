@@ -37,9 +37,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (newMedia && currentMedia) {
                             // If media type changed (img to video or vice versa), replace the element
                             if (newMedia.tagName !== currentMedia.tagName) {
-                                currentMedia.replaceWith(newMedia.cloneNode(true));
+                                const cloned = newMedia.cloneNode(true);
+                                cloned.classList.add('hero-image');
+                                currentMedia.replaceWith(cloned);
                             } else {
-                                // Same type
+                                // Same type — ensure hero-image class is present
+                                currentMedia.classList.add('hero-image');
                                 if (currentMedia.tagName === 'VIDEO') {
                                     const sourceEl = currentMedia.querySelector('source') || document.createElement('source');
                                     sourceEl.src = newMedia.querySelector('source') ? newMedia.querySelector('source').src : newMedia.src;

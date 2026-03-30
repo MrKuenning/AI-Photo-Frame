@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
         let container = heroImage.closest('.hero-expanded');
         if (!container) container = heroImage.closest('.hero-view');
         if (!container) container = heroImage.closest('.large-preview-image-container');
+        if (!container) container = heroImage.closest('.picture-frame .image-container');
         if (!container) container = heroImage.closest('.image-container');
 
         if (!container) return null;
@@ -486,7 +487,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         // Observe hero containers
-        document.querySelectorAll('.hero-view, .large-preview-image-container, .image-container').forEach(container => {
+        document.querySelectorAll('.hero-view, .large-preview-image-container, .picture-frame .image-container, .image-container').forEach(container => {
             observer.observe(container, { childList: true, subtree: true });
         });
     }

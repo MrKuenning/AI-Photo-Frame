@@ -28,15 +28,15 @@
         </button>
 
         {% if latest_image %}
-        <div class="image-container load-metadata" data-filename="{{ latest_image.filename }}"
+        <div class="image-container hero-view load-metadata" data-filename="{{ latest_image.filename }}"
             data-subfolder="{{ latest_image.subfolder }}" data-media-type="{{ latest_image.media_type }}">
             {% if latest_image.media_type == 'video' %}
-            <video id="frame-image" controls preload="metadata" autoplay loop playsinline webkit-playsinline onerr="console.error('Video Error on Frame:', this.error)">
+            <video id="frame-image" class="hero-image" preload="metadata" autoplay loop playsinline webkit-playsinline onerror="console.error('Video Error on Frame:', this.error)">
                 <source src="{{ url_for('serve_image', filename=latest_image.subfolder + '/' + latest_image.filename) }}" type="video/mp4">
             </video>
             {% else %}
             <img src="{{ url_for('serve_image', filename=latest_image.subfolder + '/' + latest_image.filename) }}"
-                alt="Latest Image" id="frame-image">
+                alt="Latest Image" id="frame-image" class="hero-image">
             {% endif %}
             <div class="metadata">
                 {% if latest_image.metadata %}
@@ -73,6 +73,10 @@
     <!-- Shared metadata utilities -->
     <script src="{{ url_for('static', filename='js/metadata_utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/frame.js') }}"></script>
+    <!-- Unified media viewer: zoom/pan for images -->
+    <script src="{{ url_for('static', filename='js/actual_size_toggle.js') }}"></script>
+    <!-- Unified media viewer: custom video controls -->
+    <script src="{{ url_for('static', filename='js/video_controls.js') }}"></script>
 
     <!-- Fullscreen toggle -->
     <script>
