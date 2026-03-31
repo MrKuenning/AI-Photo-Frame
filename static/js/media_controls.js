@@ -186,13 +186,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const icon = btn.querySelector('i');
             if (icon) {
                 if (isFullscreen) {
-                    icon.className = 'bi bi-fullscreen-exit';
+                    icon.className = 'bi bi-arrows-angle-contract';
                     btn.classList.add('active');
-                    btn.title = 'Exit Fullscreen';
+                    btn.title = 'Exit Expanded View';
                 } else {
-                    icon.className = 'bi bi-arrows-fullscreen';
+                    icon.className = 'bi bi-arrows-angle-expand';
                     btn.classList.remove('active');
-                    btn.title = 'Enter Fullscreen';
+                    btn.title = 'Enter Expanded View';
                 }
             }
         });

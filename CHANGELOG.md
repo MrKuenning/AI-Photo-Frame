@@ -4,6 +4,19 @@ All notable changes to the AI Photo Frame application will be documented in this
 
 ---
 
+## [2026-03-31]
+### Added
+- **UI & Button Layout Optimization**<br>
+  Standardized the look and feel of action buttons across the application. All tool buttons (Metadata, Delete, Flag, Expand, Fullscreen) now share a uniform 40px diameter, matching the video player controls. Navigation buttons (Previous/Next) have been aligned to the same 40px height for perfect visual consistency.
+- **Mobile Navigation Refinement**<br>
+  Optimized the mobile hero view footer to ensure all 7 action buttons fit on a single row without wrapping or horizontal overflow. This was achieved by compressing button padding and inter-button gaps on narrow screens.
+- **Expanded vs. Fullscreen Differentiation**<br>
+  Separated the internal "Expanded View" and system "Browser Fullscreen" into distinct controls. The Expanded view now features specific `bi-arrows-angle-expand`/`contract` icons and descriptive tooltips to distinguish it from the browser-level fullscreen toggle.
+
+### Fixed
+- **Mobile Video Control Wrapping**<br>
+  Repositioned the video time display above the progress bar on mobile devices. This prevents the timestamp from forcing the main playback buttons onto multiple rows, ensuring a clean and accessible control bar on small screens.
+
 ## [2026-03-26]
 ### Added
 - **Unified Media Viewer Standardization**<br>

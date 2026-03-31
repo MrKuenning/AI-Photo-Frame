@@ -958,7 +958,7 @@
                         </button>
 
                         <!-- Fullscreen Button -->
-                        <button id="page-fullscreen-toggle" title="Toggle Fullscreen">
+                        <button id="page-fullscreen-toggle" class="page-fullscreen-toggle-btn" title="Toggle Fullscreen">
                             <i class="bi bi-arrows-fullscreen"></i>
                         </button>
                     </div>
@@ -1057,29 +1057,33 @@
 
         // Show metadata on hover
         document.addEventListener('DOMContentLoaded', function () {
-            // Initialize fullscreen button
-            const fullscreenToggle = document.getElementById('page-fullscreen-toggle');
+            // Initialize fullscreen buttons
+            const fullscreenToggles = document.querySelectorAll('.page-fullscreen-toggle-btn, #page-fullscreen-toggle');
             const container = document.querySelector('.container');
 
-            if (fullscreenToggle && container) {
+            if (fullscreenToggles.length > 0 && container) {
                 // Update button icon based on fullscreen state
                 function updateFullscreenButton() {
-                    if (fullscreenAPI.isFullscreen()) {
-                        fullscreenToggle.innerHTML = '<i class="bi bi-fullscreen-exit"></i>';
-                        fullscreenToggle.title = 'Exit Fullscreen';
-                    } else {
-                        fullscreenToggle.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
-                        fullscreenToggle.title = 'Enter Fullscreen';
-                    }
+                    fullscreenToggles.forEach(toggle => {
+                        if (fullscreenAPI.isFullscreen()) {
+                            toggle.innerHTML = '<i class="bi bi-fullscreen-exit"></i>';
+                            toggle.title = 'Exit Fullscreen';
+                        } else {
+                            toggle.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
+                            toggle.title = 'Enter Fullscreen';
+                        }
+                    });
                 }
 
                 // Toggle fullscreen on button click
-                fullscreenToggle.addEventListener('click', function () {
-                    if (fullscreenAPI.isFullscreen()) {
-                        fullscreenAPI.exit();
-                    } else {
-                        fullscreenAPI.enter(container);
-                    }
+                fullscreenToggles.forEach(toggle => {
+                    toggle.addEventListener('click', function () {
+                        if (fullscreenAPI.isFullscreen()) {
+                            fullscreenAPI.exit();
+                        } else {
+                            fullscreenAPI.enter(container);
+                        }
+                    });
                 });
 
                 // Update button icon on fullscreen change
